@@ -32,7 +32,7 @@ class MachaAgent:
     def __init__(
         self,
         ollama_host: str = "http://localhost:11434",
-        model: str = "gpt-oss:latest",
+        model: str = "gpt-oss:20b",
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
         context_db = None,
         config_repo: str = "git+https://git.coven.systems/lily/nixos-servers",

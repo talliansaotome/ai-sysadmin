@@ -69,8 +69,30 @@ in {
     
     model = mkOption {
       type = types.str;
-      default = "llama3.1:70b";
+      default = "gpt-oss:20b";
       description = "LLM model to use for reasoning";
+    };
+    
+    ollamaAcceleration = mkOption {
+      type = types.nullOr (types.enum [ "rocm" "cuda" ]);
+      default = null;
+      example = "rocm";
+      description = ''
+        GPU acceleration for Ollama:
+        - "rocm" for AMD GPUs
+        - "cuda" for NVIDIA GPUs
+        - null for CPU-only (slower but works everywhere)
+      '';
+    };
+    
+    preloadModels = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Automatically download AI models on first run.
+        When enabled, downloads ~50GB+ of models including gpt-oss, qwen3, gemma3, etc.
+        When disabled, models will be downloaded on-demand when first used.
+      '';
     };
     
     uid = mkOption {
@@ -149,7 +171,7 @@ in {
     # Ollama service for AI inference
     services.ollama = {
       enable = true;
-      acceleration = "rocm";
+      acceleration = cfg.ollamaAcceleration;
       host = "0.0.0.0";
       port = 11434;
       environmentVariables = {
@@ -159,13 +181,13 @@ in {
         "OLLAMA_CONTEXT_LENGTH" = "131072";
       };
       openFirewall = false;  # Keep internal only
-      loadModels = [
-        "qwen3"
+      loadModels = mkIf cfg.preloadModels [
         "gpt-oss"
-        "gemma3"
         "gpt-oss:20b"
+        "qwen3"
         "qwen3:4b-instruct-2507-fp16"
         "qwen3:8b-fp16"
+        "gemma3"
         "mistral:7b"
         "chroma/all-minilm-l6-v2-f32:latest"
       ];

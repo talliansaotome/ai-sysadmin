@@ -120,7 +120,7 @@ class MachaOrchestrator:
         import socket
         
         self.ollama_host = "http://localhost:11434"  # Default
-        self.model = "gpt-oss:latest"  # Default
+        self.model = "gpt-oss:20b"  # Default
         self.ai_name = socket.gethostname().split('.')[0]  # Default to short hostname
         
         # Try to get flake URL from NH_FLAKE environment variable (set by nh tool)

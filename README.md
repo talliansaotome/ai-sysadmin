@@ -16,6 +16,67 @@ The AI assistant's name is configurable and defaults to your system's hostname, 
 - **Notification System**: Gotify integration for alerts
 - **Multi-OS Support**: Manages NixOS, Ubuntu, Debian, Arch, and other Linux distributions
 
+## Requirements
+
+### Hardware
+
+- **CPU**: Modern multi-core processor
+- **RAM**: At least 16GB recommended for larger models (8GB minimum for smaller models)
+- **Disk**: At least 20-50GB free space for model storage (depending on which models you use)
+- **GPU** (Optional but recommended):
+  - **AMD GPUs**: Set `ollamaAcceleration = "rocm"` (tested on RX 7900 XT)
+  - **NVIDIA GPUs**: Set `ollamaAcceleration = "cuda"`
+  - **CPU-only**: Set `ollamaAcceleration = null` (default, slower but works everywhere)
+
+### Software
+
+- **NixOS** with flakes enabled
+- **Git** (installed automatically by the module)
+
+### What's Included Automatically
+
+When using the NixOS module (`ai-sysadmin.nixosModules.default`), the following are **automatically installed and configured**:
+
+- ✅ **Ollama** - AI inference engine (CPU-only by default, GPU acceleration optional)
+- ✅ **ChromaDB** - Vector database for context and knowledge (port 8000)
+- ✅ **Python 3** - With all required dependencies (requests, psutil, chromadb)
+- ✅ **Git** - For configuration management
+- ✅ **Systemd services** - Autonomous operation and queue worker
+- ✅ **CLI tools** - All `{aiName}-*` commands
+
+### Model Downloads
+
+By default, models are downloaded **on-demand** when first used. To pre-download models (~50GB), set:
+
+```nix
+services.ai-sysadmin.preloadModels = true;
+```
+
+This will automatically download: gpt-oss, gpt-oss:20b, qwen3 variants, gemma3, mistral:7b, and embedding models.
+
+### GPU Acceleration (Optional)
+
+```nix
+services.ai-sysadmin.ollamaAcceleration = "rocm";  # AMD GPUs
+# OR
+services.ai-sysadmin.ollamaAcceleration = "cuda";  # NVIDIA GPUs
+# OR
+services.ai-sysadmin.ollamaAcceleration = null;    # CPU-only (default)
+```
+
+### Optional Components
+
+- **Gotify** - For notifications (not included, you must provide your own server)
+
+### Running Without NixOS
+
+If not using the NixOS module, you'll need to manually install:
+- Ollama (https://ollama.com/) with gpt-oss:20b model
+- ChromaDB (https://www.trychroma.com/)
+- Python 3.10+ with dependencies from `requirements.txt`
+
+**Using the [NixOS module](#quick-start) is strongly recommended** as it handles nearly everything automatically.
+
 ## Quick Start
 
 ### As a NixOS Flake Input
@@ -40,7 +101,13 @@ Add to your `flake.nix`:
             autonomyLevel = "suggest";    # observe, suggest, auto-safe, auto-full
             checkInterval = 300;          # seconds
             ollamaHost = "http://localhost:11434";
-            model = "llama3.1:70b";
+            model = "gpt-oss:20b";
+            
+            # Optional: GPU acceleration (null=CPU, "rocm"=AMD, "cuda"=NVIDIA)
+            ollamaAcceleration = null;    # CPU-only by default
+            
+            # Optional: Pre-download models (~50GB)
+            preloadModels = false;        # Download on-demand by default
             
             # Optional: Gotify notifications
             gotifyUrl = "http://your-gotify-server:8181";
