@@ -7,12 +7,18 @@ extensions:
   - addsTo:
       pack: codeql/python-all
       extensible: sinkModel
-    data: []
+    data:
+      - ["ollama_queue.OllamaQueue","Member[cleanup_old_requests].Argument[self]","code-injection"]
+      - ["ollama_queue.OllamaQueue","Member[submit].Argument[1,payload:]","code-injection"]
+      - ["ollama_queue.OllamaQueue","Member[start_worker].Argument[self]","code-injection"]
 
   - addsTo:
       pack: codeql/python-all
       extensible: summaryModel
-    data: []
+    data:
+      - ["ollama_queue.OllamaQueue","Member[get_queue_stats]","Argument[self]","ReturnValue","value"]
+      - ["ollama_queue.OllamaQueue","Member[get_status]","Argument[0,request_id:]","ReturnValue","value"]
+      - ["ollama_queue.OllamaQueue","Member[wait_for_result]","Argument[0,request_id:]","Argument[3,progress_callback:]","value"]
 
   - addsTo:
       pack: codeql/python-all
@@ -20,13 +26,7 @@ extensions:
     data:
       - ["ollama_queue..OllamaQueue","","summary"]
       - ["ollama_queue..Priority","","summary"]
-      - ["ollama_queue.OllamaQueue","Member[cleanup_old_requests]","summary"]
-      - ["ollama_queue.OllamaQueue","Member[get_queue_stats]","summary"]
-      - ["ollama_queue.OllamaQueue","Member[get_status]","summary"]
       - ["ollama_queue.OllamaQueue","Member[has_pending_with_priority]","summary"]
-      - ["ollama_queue.OllamaQueue","Member[start_worker]","summary"]
-      - ["ollama_queue.OllamaQueue","Member[submit]","summary"]
-      - ["ollama_queue.OllamaQueue","Member[wait_for_result]","summary"]
 
   - addsTo:
       pack: codeql/python-all

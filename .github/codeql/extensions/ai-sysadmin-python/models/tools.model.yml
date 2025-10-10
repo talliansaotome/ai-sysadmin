@@ -30,9 +30,10 @@ extensions:
       - ["tools.SysadminTools","Member[send_notification]","summary"]
       - ["tools.SysadminTools","Member[view_logs]","summary"]
       - ["tools.SysadminTools","Member[check_network]","summary"]
+      - ["tools.SysadminTools","Member[execute_command]","summary"]
+      - ["tools.SysadminTools","Member[check_service_status]","summary"]
 
   - addsTo:
       pack: codeql/python-all
       extensible: typeModel
-    data:
-      - ["","tools.SysadminTools","Member[execute_command]"]
+    data: []
