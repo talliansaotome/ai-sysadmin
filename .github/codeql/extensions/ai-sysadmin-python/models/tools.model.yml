@@ -1,0 +1,38 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["tools..SysadminTools","","summary"]
+      - ["tools.SysadminTools","Member[execute_tool]","summary"]
+      - ["tools.SysadminTools","Member[get_gpu_metrics]","summary"]
+      - ["tools.SysadminTools","Member[get_hardware_info]","summary"]
+      - ["tools.SysadminTools","Member[get_system_metrics]","summary"]
+      - ["tools.SysadminTools","Member[get_tool_definitions]","summary"]
+      - ["tools.SysadminTools","Member[list_directory]","summary"]
+      - ["tools.SysadminTools","Member[read_file]","summary"]
+      - ["tools.SysadminTools","Member[retrieve_cached_output]","summary"]
+      - ["tools.SysadminTools","Member[send_notification]","summary"]
+      - ["tools.SysadminTools","Member[view_logs]","summary"]
+      - ["tools.SysadminTools","Member[check_network]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data:
+      - ["","tools.SysadminTools","Member[execute_command]"]

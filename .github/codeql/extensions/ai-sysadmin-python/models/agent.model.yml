@@ -1,0 +1,31 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["agent..MachaAgent","","summary"]
+      - ["agent.MachaAgent","Member[analyze_system_state]","summary"]
+      - ["agent.MachaAgent","Member[propose_fix]","summary"]
+      - ["agent.MachaAgent","Member[reflect_and_learn]","summary"]
+      - ["agent.MachaAgent","Member[store_learning]","summary"]
+      - ["agent.MachaAgent","Member[get_recent_decisions]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

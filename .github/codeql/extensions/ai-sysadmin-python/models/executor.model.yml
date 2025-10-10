@@ -1,0 +1,30 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["executor..SafeExecutor","","summary"]
+      - ["executor.SafeExecutor","Member[approve_action]","summary"]
+      - ["executor.SafeExecutor","Member[execute_action]","summary"]
+      - ["executor.SafeExecutor","Member[get_approval_queue]","summary"]
+      - ["executor.SafeExecutor","Member[reject_action]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

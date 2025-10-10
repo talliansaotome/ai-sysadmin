@@ -1,0 +1,34 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["notifier..GotifyNotifier","","summary"]
+      - ["notifier.GotifyNotifier","Member[notify_action_executed]","summary"]
+      - ["notifier.GotifyNotifier","Member[notify_action_queued]","summary"]
+      - ["notifier.GotifyNotifier","Member[notify_critical_issue]","summary"]
+      - ["notifier.GotifyNotifier","Member[notify_health_summary]","summary"]
+      - ["notifier.GotifyNotifier","Member[notify_issue_created]","summary"]
+      - ["notifier.GotifyNotifier","Member[notify_service_failure]","summary"]
+      - ["notifier.GotifyNotifier","Member[send]","summary"]
+      - ["notifier.GotifyNotifier","Member[send_system_discovered]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

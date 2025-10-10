@@ -1,0 +1,34 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["ollama_queue..OllamaQueue","","summary"]
+      - ["ollama_queue..Priority","","summary"]
+      - ["ollama_queue.OllamaQueue","Member[cleanup_old_requests]","summary"]
+      - ["ollama_queue.OllamaQueue","Member[get_queue_stats]","summary"]
+      - ["ollama_queue.OllamaQueue","Member[get_status]","summary"]
+      - ["ollama_queue.OllamaQueue","Member[has_pending_with_priority]","summary"]
+      - ["ollama_queue.OllamaQueue","Member[start_worker]","summary"]
+      - ["ollama_queue.OllamaQueue","Member[submit]","summary"]
+      - ["ollama_queue.OllamaQueue","Member[wait_for_result]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

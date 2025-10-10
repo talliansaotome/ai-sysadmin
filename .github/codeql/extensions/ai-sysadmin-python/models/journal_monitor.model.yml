@@ -1,0 +1,35 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["journal_monitor..JournalMonitor","","summary"]
+      - ["journal_monitor.JournalMonitor","Member[collect_all]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[collect_disk_usage]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[collect_log_errors]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[collect_network_status]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[collect_resources]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[collect_systemd_status]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[discover_hosts]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[get_active_services]","summary"]
+      - ["journal_monitor.JournalMonitor","Member[get_summary]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

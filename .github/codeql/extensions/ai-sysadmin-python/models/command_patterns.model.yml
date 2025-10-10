@@ -1,0 +1,30 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["command_patterns","Member[build_scp_command]","summary"]
+      - ["command_patterns","Member[build_ssh_command]","summary"]
+      - ["command_patterns","Member[execute_ssh_command]","summary"]
+      - ["command_patterns","Member[transform_ssh_command]","summary"]
+      - ["command_patterns","Member[validate_patterns]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

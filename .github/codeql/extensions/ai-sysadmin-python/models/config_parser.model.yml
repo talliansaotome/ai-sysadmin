@@ -1,0 +1,33 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["config_parser..ConfigParser","","summary"]
+      - ["config_parser.ConfigParser","Member[ensure_repo]","summary"]
+      - ["config_parser.ConfigParser","Member[extract_imports]","summary"]
+      - ["config_parser.ConfigParser","Member[get_all_config_files]","summary"]
+      - ["config_parser.ConfigParser","Member[get_system_config]","summary"]
+      - ["config_parser.ConfigParser","Member[get_systems_from_flake]","summary"]
+      - ["config_parser.ConfigParser","Member[read_file_content]","summary"]
+      - ["config_parser.ConfigParser","Member[resolve_import_path]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

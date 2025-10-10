@@ -1,0 +1,33 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["git_context..GitContext","","summary"]
+      - ["git_context.GitContext","Member[get_all_managed_systems]","summary"]
+      - ["git_context.GitContext","Member[get_current_branch]","summary"]
+      - ["git_context.GitContext","Member[get_recent_changes_for_system]","summary"]
+      - ["git_context.GitContext","Member[get_recent_commits]","summary"]
+      - ["git_context.GitContext","Member[get_remote_url]","summary"]
+      - ["git_context.GitContext","Member[get_system_config_files]","summary"]
+      - ["git_context.GitContext","Member[get_system_context_summary]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

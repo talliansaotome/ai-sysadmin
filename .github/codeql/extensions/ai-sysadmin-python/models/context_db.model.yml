@@ -1,0 +1,56 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["context_db.ContextDatabase","Member[store_issue]","summary"]
+      - ["context_db..ContextDatabase","","summary"]
+      - ["context_db.ContextDatabase","Member[add_relationship]","summary"]
+      - ["context_db.ContextDatabase","Member[delete_issue]","summary"]
+      - ["context_db.ContextDatabase","Member[find_similar_issues]","summary"]
+      - ["context_db.ContextDatabase","Member[get_all_systems]","summary"]
+      - ["context_db.ContextDatabase","Member[get_config_file]","summary"]
+      - ["context_db.ContextDatabase","Member[get_dependencies]","summary"]
+      - ["context_db.ContextDatabase","Member[get_dependents]","summary"]
+      - ["context_db.ContextDatabase","Member[get_issue]","summary"]
+      - ["context_db.ContextDatabase","Member[get_issue_context]","summary"]
+      - ["context_db.ContextDatabase","Member[get_knowledge_by_topic]","summary"]
+      - ["context_db.ContextDatabase","Member[get_known_hostnames]","summary"]
+      - ["context_db.ContextDatabase","Member[get_recent_decisions]","summary"]
+      - ["context_db.ContextDatabase","Member[get_recent_investigations]","summary"]
+      - ["context_db.ContextDatabase","Member[get_system]","summary"]
+      - ["context_db.ContextDatabase","Member[get_system_config_files]","summary"]
+      - ["context_db.ContextDatabase","Member[get_system_context]","summary"]
+      - ["context_db.ContextDatabase","Member[is_system_known]","summary"]
+      - ["context_db.ContextDatabase","Member[list_issues]","summary"]
+      - ["context_db.ContextDatabase","Member[list_knowledge_topics]","summary"]
+      - ["context_db.ContextDatabase","Member[query_config_files]","summary"]
+      - ["context_db.ContextDatabase","Member[query_knowledge]","summary"]
+      - ["context_db.ContextDatabase","Member[register_system]","summary"]
+      - ["context_db.ContextDatabase","Member[store_config_file]","summary"]
+      - ["context_db.ContextDatabase","Member[store_decision]","summary"]
+      - ["context_db.ContextDatabase","Member[store_investigation]","summary"]
+      - ["context_db.ContextDatabase","Member[store_knowledge]","summary"]
+      - ["context_db.ContextDatabase","Member[update_issue]","summary"]
+      - ["context_db.ContextDatabase","Member[update_knowledge]","summary"]
+      - ["context_db.ContextDatabase","Member[update_system_config_files]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

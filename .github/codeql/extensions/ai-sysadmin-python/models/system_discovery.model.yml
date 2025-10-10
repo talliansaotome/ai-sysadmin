@@ -1,0 +1,30 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["system_discovery..SystemDiscovery","","summary"]
+      - ["system_discovery.SystemDiscovery","Member[detect_os_type]","summary"]
+      - ["system_discovery.SystemDiscovery","Member[discover_from_journal]","summary"]
+      - ["system_discovery.SystemDiscovery","Member[get_system_role]","summary"]
+      - ["system_discovery.SystemDiscovery","Member[profile_system]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

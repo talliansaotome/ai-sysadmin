@@ -1,0 +1,36 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["monitor..SystemMonitor","","summary"]
+      - ["monitor.SystemMonitor","Member[check_boot_status]","summary"]
+      - ["monitor.SystemMonitor","Member[check_disk_usage]","summary"]
+      - ["monitor.SystemMonitor","Member[check_network]","summary"]
+      - ["monitor.SystemMonitor","Member[check_nixos_status]","summary"]
+      - ["monitor.SystemMonitor","Member[check_recent_errors]","summary"]
+      - ["monitor.SystemMonitor","Member[check_resources]","summary"]
+      - ["monitor.SystemMonitor","Member[check_systemd_services]","summary"]
+      - ["monitor.SystemMonitor","Member[collect_all]","summary"]
+      - ["monitor.SystemMonitor","Member[get_summary]","summary"]
+      - ["monitor.SystemMonitor","Member[save_snapshot]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

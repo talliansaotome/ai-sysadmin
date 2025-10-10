@@ -1,0 +1,35 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["issue_tracker..IssueTracker","","summary"]
+      - ["issue_tracker.IssueTracker","Member[auto_resolve_if_fixed]","summary"]
+      - ["issue_tracker.IssueTracker","Member[close_issue]","summary"]
+      - ["issue_tracker.IssueTracker","Member[create_issue]","summary"]
+      - ["issue_tracker.IssueTracker","Member[find_similar_issue]","summary"]
+      - ["issue_tracker.IssueTracker","Member[get_issue]","summary"]
+      - ["issue_tracker.IssueTracker","Member[get_issue_history]","summary"]
+      - ["issue_tracker.IssueTracker","Member[list_issues]","summary"]
+      - ["issue_tracker.IssueTracker","Member[resolve_issue]","summary"]
+      - ["issue_tracker.IssueTracker","Member[update_issue]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []

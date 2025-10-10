@@ -1,0 +1,34 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sourceModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sinkModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: summaryModel
+    data: []
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      - ["remote_monitor..RemoteMonitor","","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[check_connectivity]","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[collect_all]","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[collect_disk_usage]","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[collect_log_errors]","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[collect_network_status]","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[collect_resources]","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[collect_systemd_status]","summary"]
+      - ["remote_monitor.RemoteMonitor","Member[get_summary]","summary"]
+
+  - addsTo:
+      pack: codeql/python-all
+      extensible: typeModel
+    data: []
