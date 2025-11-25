@@ -451,14 +451,14 @@ in {
     # TimescaleDB Service
     services.postgresql = mkIf cfg.timescaledb.enable {
       enable = true;
-      port = cfg.timescaledb.port;
+      package = pkgs.postgresql_16.withPackages (ps: [ ps.timescaledb ]);
       ensureDatabases = [ "ai_sysadmin" ];
       ensureUsers = [{
         name = "ai_sysadmin";
         ensureDBOwnership = true;
       }];
-      extraPlugins = with pkgs.postgresql.pkgs; [ timescaledb ];
       settings = {
+        port = cfg.timescaledb.port;
         shared_preload_libraries = "timescaledb";
       };
     };
