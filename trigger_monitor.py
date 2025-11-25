@@ -43,7 +43,7 @@ class TriggerMonitor:
         small_model: str = "qwen3:1b",
         use_model: bool = True,
         llm_backend = None,
-        backend_url: str = "http://localhost:8080/v1"
+        backend_url: str = "http://127.0.0.1:8080/v1"
     ):
         """
         Initialize trigger monitor

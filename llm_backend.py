@@ -53,12 +53,14 @@ class LLMBackend(ABC):
 class LlamaCppBackend(LLMBackend):
     """Backend for llama.cpp with OpenAI-compatible API"""
     
-    def __init__(self, base_url: str = "http://localhost:8082/v1"):
+    def __init__(self, base_url: str = "http://127.0.0.1:8082/v1"):
         """
         Initialize llama.cpp backend
         
         Args:
             base_url: Base URL for llama.cpp API (should end with /v1)
+                     Default uses localhost for security - internal services
+                     should not be exposed externally.
         """
         self.base_url = base_url
         # OpenAI client configured for llama.cpp
