@@ -11,7 +11,6 @@ Uses the full context window and has access to all historical data.
 """
 
 import json
-import requests
 import subprocess
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -52,18 +51,16 @@ class MetaModel:
     
     def __init__(
         self,
-        ollama_host: str = "http://localhost:11434",
-        model: str = "gpt-oss:20b",
+        llm_backend = None,
+        backend_url: str = "http://localhost:8082/v1",
+        model: str = "qwen3:14b",
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
         context_db = None,
         config_repo: str = "git+https://git.coven.systems/lily/nixos-servers",
         config_branch: str = "main",
         ai_name: str = None,
-        enable_tools: bool = True,
-        use_queue: bool = True,
-        priority: str = "INTERACTIVE"
+        enable_tools: bool = True
     ):
-        self.ollama_host = ollama_host
         self.model = model
         self.state_dir = state_dir
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -73,6 +70,13 @@ class MetaModel:
         self.config_branch = config_branch
         self.enable_tools = enable_tools
         
+        # Setup LLM backend
+        if llm_backend:
+            self.llm_backend = llm_backend
+        else:
+            from llm_backend import LlamaCppBackend
+            self.llm_backend = LlamaCppBackend(base_url=backend_url)
+        
         # Set AI name with fallback to short hostname
         if ai_name is None:
             import socket
@@ -81,26 +85,6 @@ class MetaModel:
         
         # Generate system prompt with AI name substituted
         self.SYSTEM_PROMPT = self.SYSTEM_PROMPT_TEMPLATE.replace("{AI_NAME}", self.ai_name)
-        
-        # Queue settings
-        self.use_queue = use_queue
-        self.priority = priority
-        self.ollama_queue = None
-        
-        if use_queue:
-            try:
-                from ollama_queue import OllamaQueue, Priority
-                self.ollama_queue = OllamaQueue()
-                self.priority_level = getattr(Priority, priority, Priority.INTERACTIVE)
-            except (PermissionError, OSError):
-                # Silently fall back to direct API calls when queue is not accessible
-                # (e.g., regular users don't have access to /var/lib/ai-sysadmin/queues)
-                self.use_queue = False
-            except Exception as e:
-                # Log unexpected errors but still fall back gracefully
-                import sys
-                print(f"Note: Ollama queue unavailable ({type(e).__name__}), using direct API", file=sys.stderr)
-                self.use_queue = False
         
         # Initialize tools system
         self.tools = SysadminTools(safe_mode=False) if enable_tools else None
@@ -235,7 +219,7 @@ Respond ONLY with valid JSON:
 """
         
         try:
-            response = self._query_ollama(prompt, temperature=0.3, timeout=30)
+            response = self._query_llm(prompt, temperature=0.3, timeout=30)
             learnings = json.loads(response)
             
             if isinstance(learnings, list):
@@ -265,7 +249,7 @@ Respond ONLY with valid JSON:
         # Ask the AI to analyze
         prompt = self._create_analysis_prompt(context, system_context)
         
-        response = self._query_ollama(prompt)
+        response = self._query_llm(prompt)
         
         # Parse the AI's response
         analysis = self._parse_analysis_response(response)
@@ -349,7 +333,7 @@ YOUR RESPONSE MUST BE VALID JSON:
 RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
 """
         
-        response = self._query_ollama(prompt)
+        response = self._query_llm(prompt)
         
         try:
             # Try to extract JSON from response
@@ -457,26 +441,21 @@ RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
         
         return prompt
     
-    def _auto_diagnose_ollama(self) -> str:
-        """Automatically diagnose Ollama issues"""
+    def _auto_diagnose_llm(self) -> str:
+        """Automatically diagnose LLM backend issues"""
         diagnostics = []
         
-        diagnostics.append("=== OLLAMA SELF-DIAGNOSTIC ===")
+        diagnostics.append("=== LLM BACKEND DIAGNOSTIC ===")
         
-        # Check if Ollama service is running
+        # Check if backend is available
         try:
-            result = subprocess.run(
-                ['systemctl', 'is-active', 'ollama.service'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                diagnostics.append("✅ Ollama service is active")
+            is_available = self.llm_backend.is_available()
+            if is_available:
+                diagnostics.append("✅ LLM backend is available")
             else:
-                diagnostics.append(f"❌ Ollama service is NOT active: {result.stdout.strip()}")
+                diagnostics.append(f"❌ LLM backend is NOT available")
         except Exception as e:
-            diagnostics.append(f"⚠️  Could not check service status: {e}")
+            diagnostics.append(f"⚠️  Could not check backend status: {e}")
         
         # Check memory usage
         try:
@@ -485,117 +464,37 @@ RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
         except Exception as e:
             diagnostics.append(f"⚠️  Could not check memory: {e}")
         
-        # Check which models are loaded
-        try:
-            response = requests.get(f"{self.ollama_host}/api/tags", timeout=5)
-            if response.status_code == 200:
-                models = response.json().get('models', [])
-                diagnostics.append(f"\nLoaded models: {len(models)}")
-                for model in models:
-                    name = model.get('name', 'unknown')
-                    size = model.get('size', 0) / (1024**3)
-                    is_target = "← TARGET" if name == self.model else ""
-                    diagnostics.append(f"  • {name} ({size:.1f} GB) {is_target}")
-                
-                # Check if target model is loaded
-                model_names = [m.get('name') for m in models]
-                if self.model not in model_names:
-                    diagnostics.append(f"\n❌ TARGET MODEL NOT LOADED: {self.model}")
-                    diagnostics.append(f"   Available: {', '.join(model_names)}")
-            else:
-                diagnostics.append(f"❌ Ollama API returned {response.status_code}")
-        except Exception as e:
-            diagnostics.append(f"⚠️  Could not query Ollama API: {e}")
-        
-        # Check recent Ollama logs
-        try:
-            result = subprocess.run(
-                ['journalctl', '-u', 'ollama.service', '-n', '20', '--no-pager'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.stdout:
-                diagnostics.append(f"\nRecent logs:\n{result.stdout}")
-        except Exception as e:
-            diagnostics.append(f"⚠️  Could not check logs: {e}")
+        diagnostics.append(f"\nConfigured model: {self.model}")
         
         return "\n".join(diagnostics)
     
-    def _query_ollama(self, prompt: str, temperature: float = 0.3) -> str:
-        """Query Ollama API (with optional queue)"""
-        # If queue is enabled, submit to queue and wait
-        if self.use_queue and self.ollama_queue:
-            try:
-                # Check if there's already an AUTONOMOUS request pending/processing
-                if self.priority_level.value == 1:  # AUTONOMOUS
-                    if self.ollama_queue.has_pending_with_priority(self.priority_level):
-                        print("[Queue] Skipping request - AUTONOMOUS check already in queue")
-                        return "System check already in progress - skipping duplicate request"
-                
-                payload = {
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "temperature": temperature,
-                    "timeout": 120
-                }
-                
-                request_id = self.ollama_queue.submit(
-                    request_type="generate",
-                    payload=payload,
-                    priority=self.priority_level
-                )
-                
-                result = self.ollama_queue.wait_for_result(request_id, timeout=300)
-                return result.get("response", "")
-            
-            except Exception as e:
-                print(f"Warning: Queue request failed, falling back to direct: {e}")
-                # Fall through to direct query
-        
-        # Direct query (no queue or queue failed)
+    def _query_llm(self, prompt: str, temperature: float = 0.3, max_tokens: int = 2000) -> str:
+        """Query LLM backend"""
         try:
-            response = requests.post(
-                f"{self.ollama_host}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "temperature": temperature,
-                },
-                timeout=120  # 2 minute timeout for large models
+            response = self.llm_backend.generate(
+                prompt=prompt,
+                model=self.model,
+                system_prompt=self.SYSTEM_PROMPT,
+                temperature=temperature,
+                max_tokens=max_tokens
             )
-            response.raise_for_status()
-            return response.json().get("response", "")
-        except requests.exceptions.HTTPError as e:
-            error_detail = ""
-            try:
-                error_detail = f" - {response.text}"
-            except:
-                pass
-            print(f"ERROR: Ollama HTTP error {response.status_code}{error_detail}")
-            print(f"Model requested: {self.model}")
-            print(f"Ollama host: {self.ollama_host}")
-            # Run diagnostics
-            diagnostics = self._auto_diagnose_ollama()
-            print(diagnostics)
-            return json.dumps({
-                "error": f"Ollama HTTP {response.status_code}: {str(e)}{error_detail}",
-                "diagnosis": f"Ollama API error - check if model '{self.model}' is available",
-                "action_type": "investigation",
-                "risk_level": "high"
-            })
+            
+            if response and not response.startswith("Error:"):
+                return response
+            else:
+                print(f"ERROR: LLM backend error: {response}")
+                return json.dumps({
+                    "error": f"LLM backend error: {response}",
+                    "diagnosis": f"Check if model '{self.model}' is available",
+                    "action_type": "investigation",
+                    "risk_level": "high"
+                })
         except Exception as e:
-            print(f"ERROR: Failed to query Ollama: {str(e)}")
+            print(f"ERROR: Failed to query LLM: {str(e)}")
             print(f"Model requested: {self.model}")
-            print(f"Ollama host: {self.ollama_host}")
-            # Run diagnostics
-            diagnostics = self._auto_diagnose_ollama()
-            print(diagnostics)
             return json.dumps({
-                "error": f"Failed to query Ollama: {str(e)}",
-                "diagnosis": "Ollama API unavailable",
+                "error": f"Failed to query LLM: {str(e)}",
+                "diagnosis": "LLM backend unavailable",
                 "action_type": "investigation",
                 "risk_level": "high"
             })
@@ -635,7 +534,7 @@ Output:
 
 Provide concise summary (max 600 chars)."""
                 
-                summary = self._query_ollama(extraction_prompt, temperature=0.1)
+                summary = self._query_llm(extraction_prompt, temperature=0.1)
                 return f"[Summary of {tool_name}]:\n{summary}\n\n[Full output: {output_size:,} chars cached as {cache_id}]"
             except Exception as e:
                 print(f"Warning: Failed to extract findings: {e}")
@@ -670,7 +569,7 @@ Chunk:
 
 Concise summary (max 400 chars)."""
                 
-                chunk_summary = self._query_ollama(extraction_prompt, temperature=0.1)
+                chunk_summary = self._query_llm(extraction_prompt, temperature=0.1)
                 chunk_summaries.append(f"[Chunk {chunk_num}]: {chunk_summary}")
             
             # Phase 2: Reduce - Combine chunk summaries if many chunks
@@ -687,7 +586,7 @@ Concise summary (max 400 chars)."""
 
 Provide unified summary (max 800 chars) covering all key points."""
                 
-                final_summary = self._query_ollama(reduce_prompt, temperature=0.1)
+                final_summary = self._query_llm(reduce_prompt, temperature=0.1)
                 return f"""[Chunked analysis of {tool_name}]:
 {final_summary}
 
@@ -794,20 +693,20 @@ Provide unified summary (max 800 chars) covering all key points."""
         
         return result
     
-    def _query_ollama_with_tools(
+    def _query_llm_with_tools(
         self,
         messages: List[Dict[str, str]],
         temperature: float = 0.3,
         max_iterations: int = 30
     ) -> str:
         """
-        Query Ollama using chat API with tool support.
-        Handles tool calls and returns final response.
+        Query LLM with tool support using simplified prompting.
+        Note: llama.cpp doesn't have native tool calling, so we use prompt-based tools.
         
         Args:
             messages: List of chat messages [{"role": "user", "content": "..."}]
             temperature: Generation temperature
-            max_iterations: Maximum number of tool-calling iterations (default 30 for complex system operations)
+            max_iterations: Maximum number of tool-calling iterations
             
         Returns:
             Final text response from the model
@@ -815,138 +714,58 @@ Provide unified summary (max 800 chars) covering all key points."""
         if not self.enable_tools or not self.tools:
             # Fallback to regular query
             user_content = " ".join([m["content"] for m in messages if m["role"] == "user"])
-            return self._query_ollama(user_content, temperature)
+            return self._query_llm(user_content, temperature)
         
-        # Add system message if not present
-        if not any(m["role"] == "system" for m in messages):
-            messages = [{"role": "system", "content": self.SYSTEM_PROMPT}] + messages
+        # For now, use simplified approach: describe tools in prompt and parse responses
+        # This is a temporary solution until we implement proper function calling
+        user_content = " ".join([m["content"] for m in messages if m["role"] == "user"])
         
         tool_definitions = self.tools.get_tool_definitions()
+        tools_description = "\n\nAvailable tools:\n" + json.dumps(tool_definitions, indent=2)
         
+        enhanced_prompt = f"""{user_content}
+
+{tools_description}
+
+You can use these tools by responding with JSON in this format:
+{{"tool": "tool_name", "arguments": {{"arg1": "value1"}}}}
+
+Or respond with regular text if no tools are needed."""
+        
+        # Simple tool calling loop (simplified from Ollama's native support)
         for iteration in range(max_iterations):
             try:
-                # Prune messages before sending to avoid context overflow
-                pruned_messages = self._prune_messages(messages, max_context_tokens=80000)
+                response_text = self._query_llm(enhanced_prompt, temperature)
                 
-                # Use queue if enabled
-                if self.use_queue and self.ollama_queue:
-                    try:
-                        # Check if there's already an AUTONOMOUS request pending/processing
-                        if self.priority_level.value == 1:  # AUTONOMOUS
-                            if self.ollama_queue.has_pending_with_priority(self.priority_level):
-                                print("[Queue] Skipping request - AUTONOMOUS check already in queue")
-                                return "System check already in progress - skipping duplicate request"
-                        
-                        payload = {
-                            "model": self.model,
-                            "messages": pruned_messages,
-                            "stream": False,
-                            "temperature": temperature,
-                            "tools": tool_definitions,
-                            "timeout": 120
-                        }
-                        
-                        request_id = self.ollama_queue.submit(
-                            request_type="chat_with_tools",
-                            payload=payload,
-                            priority=self.priority_level
-                        )
-                        
-                        resp_data = self.ollama_queue.wait_for_result(request_id, timeout=300)
-                    
-                    except Exception as e:
-                        print(f"Warning: Queue request failed, falling back to direct: {e}")
-                        # Fall through to direct query
-                        response = requests.post(
-                            f"{self.ollama_host}/api/chat",
-                            json={
-                                "model": self.model,
-                                "messages": pruned_messages,
-                                "stream": False,
-                                "temperature": temperature,
-                                "tools": tool_definitions
-                            },
-                            timeout=120
-                        )
-                        response.raise_for_status()
-                        resp_data = response.json()
-                else:
-                    # Direct query (no queue)
-                    response = requests.post(
-                        f"{self.ollama_host}/api/chat",
-                        json={
-                            "model": self.model,
-                            "messages": pruned_messages,
-                            "stream": False,
-                            "temperature": temperature,
-                            "tools": tool_definitions
-                        },
-                        timeout=120
-                    )
-                    response.raise_for_status()
-                    resp_data = response.json()
-                
-                message = resp_data.get("message", {})
-                
-                # Check if model wants to call tools
-                tool_calls = message.get("tool_calls", [])
-                
-                if not tool_calls:
-                    # No tools to call, return the text response
-                    return message.get("content", "")
-                
-                # Add assistant's message to history
-                messages.append(message)
-                
-                # Execute each tool call
-                for tool_call in tool_calls:
-                    function_name = tool_call["function"]["name"]
-                    arguments = tool_call["function"]["arguments"]
-                    
-                    print(f"  → Tool call: {function_name}({arguments})")
-                    
-                    # Execute the tool
-                    tool_result = self.tools.execute_tool(function_name, arguments)
-                    
-                    # Process result hierarchically based on size
-                    processed_result = self._process_tool_result_hierarchical(function_name, tool_result)
-                    
-                    # Add processed result to messages
-                    messages.append({
-                        "role": "tool",
-                        "content": processed_result
-                    })
-                
-                # Continue loop to let model process tool results
-                
-            except requests.exceptions.HTTPError as e:
-                error_body = ""
+                # Check if response contains tool call (simple JSON parsing)
                 try:
-                    error_body = response.text
-                except:
+                    # Try to parse as JSON tool call
+                    tool_call = json.loads(response_text)
+                    if "tool" in tool_call and "arguments" in tool_call:
+                        function_name = tool_call["tool"]
+                        arguments = tool_call["arguments"]
+                        
+                        print(f"  → Tool call: {function_name}({arguments})")
+                        
+                        # Execute the tool
+                        tool_result = self.tools.execute_tool(function_name, arguments)
+                        
+                        # Process result hierarchically
+                        processed_result = self._process_tool_result_hierarchical(function_name, tool_result)
+                        
+                        # Add result to prompt for next iteration
+                        enhanced_prompt = f"""Previous tool call: {function_name}
+Result: {processed_result}
+
+Based on this result, what should we do next?
+{tools_description}"""
+                        continue
+                except json.JSONDecodeError:
                     pass
                 
-                # Check if this is a context length error
-                if "context length" in error_body.lower() or "too long" in error_body.lower():
-                    print(f"ERROR: Context length exceeded. Attempting recovery...")
-                    # Emergency pruning - keep only system + last user message
-                    system_msg = next((m for m in messages if m["role"] == "system"), None)
-                    last_user_msg = next((m for m in reversed(messages) if m["role"] == "user"), None)
-                    
-                    if system_msg and last_user_msg:
-                        messages = [system_msg, last_user_msg]
-                        print(f"[Emergency context reset: keeping only system + last user message]")
-                        continue  # Retry with minimal context
+                # No tool call, return the response
+                return response_text
                 
-                print(f"ERROR: Ollama chat API error: {e}")
-                diagnostics = self._auto_diagnose_ollama()
-                print(diagnostics)
-                return json.dumps({
-                    "error": f"Ollama chat API error: {str(e)}",
-                    "diagnosis": "Failed to communicate with Ollama",
-                    "action_type": "investigation",
-                    "risk_level": "high"
-                })
             except Exception as e:
                 print(f"ERROR: Tool calling failed: {e}")
                 return json.dumps({

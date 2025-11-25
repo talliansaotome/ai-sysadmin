@@ -42,7 +42,8 @@ class TriggerMonitor:
         thresholds: Dict[str, float] = None,
         small_model: str = "qwen3:1b",
         use_model: bool = True,
-        ollama_host: str = "http://localhost:11434"
+        llm_backend = None,
+        backend_url: str = "http://localhost:8080/v1"
     ):
         """
         Initialize trigger monitor
@@ -52,7 +53,8 @@ class TriggerMonitor:
             thresholds: Metric thresholds for triggering
             small_model: Small model for log classification
             use_model: Whether to use AI model for classification
-            ollama_host: Ollama API endpoint
+            llm_backend: LLM backend instance (will be created if not provided)
+            backend_url: LLM backend URL (for llama.cpp)
         """
         self.state_dir = state_dir
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -68,7 +70,13 @@ class TriggerMonitor:
         
         self.small_model = small_model
         self.use_model = use_model
-        self.ollama_host = ollama_host
+        
+        # Setup LLM backend
+        if llm_backend:
+            self.llm_backend = llm_backend
+        else:
+            from llm_backend import LlamaCppBackend
+            self.llm_backend = LlamaCppBackend(base_url=backend_url)
         
         # Event tracking
         self.event_buffer = deque(maxlen=1000)  # Rolling buffer of events
@@ -308,8 +316,6 @@ class TriggerMonitor:
     def _classify_log_with_model(self, message: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Use small model to classify log severity and extract information"""
         try:
-            import requests
-            
             self.stats['model_classifications'] += 1
             
             # Prepare context
@@ -329,24 +335,15 @@ Message: {message[:500]}
 
 Respond in JSON format."""
 
-            response = requests.post(
-                f"{self.ollama_host}/api/generate",
-                json={
-                    "model": self.small_model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.3,
-                        "num_predict": 200
-                    }
-                },
-                timeout=10
+            # Use LLM backend abstraction
+            response_text = self.llm_backend.generate(
+                prompt=prompt,
+                model=self.small_model,
+                temperature=0.3,
+                max_tokens=200
             )
             
-            if response.status_code == 200:
-                result = response.json()
-                response_text = result.get('response', '')
-                
+            if response_text and not response_text.startswith("Error:"):
                 # Try to extract JSON from response
                 try:
                     # Look for JSON in the response

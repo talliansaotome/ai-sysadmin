@@ -5,7 +5,6 @@ Analyzes context holistically and escalates to meta model when needed
 """
 
 import json
-import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -20,32 +19,37 @@ class ReviewModel:
     def __init__(
         self,
         model: str = "qwen3:4b",
-        ollama_host: str = "http://localhost:11434",
+        llm_backend = None,
+        backend_url: str = "http://localhost:8081/v1",
         context_manager: ContextManager = None,
         executor: SafeExecutor = None,
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
-        autonomy_level: str = "suggest",
-        use_queue: bool = True
+        autonomy_level: str = "suggest"
     ):
         """
         Initialize review model
         
         Args:
             model: Small model name (e.g., qwen3:4b)
-            ollama_host: Ollama API endpoint
+            llm_backend: LLM backend instance (will be created if not provided)
+            backend_url: LLM backend URL (for llama.cpp)
             context_manager: Context manager instance
             executor: Action executor
             state_dir: State directory
             autonomy_level: Autonomy level for actions
-            use_queue: Whether to use Ollama queue
         """
         self.model = model
-        self.ollama_host = ollama_host
         self.context_manager = context_manager
         self.executor = executor
         self.state_dir = state_dir
         self.autonomy_level = autonomy_level
-        self.use_queue = use_queue
+        
+        # Setup LLM backend
+        if llm_backend:
+            self.llm_backend = llm_backend
+        else:
+            from llm_backend import LlamaCppBackend
+            self.llm_backend = LlamaCppBackend(base_url=backend_url)
         
         # Statistics
         self.stats = {
@@ -180,49 +184,20 @@ Respond in JSON format with this structure:
 """
     
     def _query_model(self, prompt: str) -> Optional[str]:
-        """Query the small model"""
+        """Query the small model using LLM backend"""
         try:
-            if self.use_queue:
-                # Use Ollama queue system
-                from ollama_queue import submit_to_queue
-                
-                result = submit_to_queue(
-                    model=self.model,
-                    prompt=prompt,
-                    priority="REVIEW",
-                    options={
-                        "temperature": 0.3,
-                        "num_predict": 1000
-                    }
-                )
-                
-                if result and result.get('status') == 'completed':
-                    return result.get('response')
-                else:
-                    print(f"Queue request failed: {result}")
-                    return None
+            response = self.llm_backend.generate(
+                prompt=prompt,
+                model=self.model,
+                temperature=0.3,
+                max_tokens=1000
+            )
+            
+            if response and not response.startswith("Error:"):
+                return response
             else:
-                # Direct API call
-                response = requests.post(
-                    f"{self.ollama_host}/api/generate",
-                    json={
-                        "model": self.model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.3,
-                            "num_predict": 1000
-                        }
-                    },
-                    timeout=60
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    return result.get('response', '')
-                else:
-                    print(f"Model query failed: {response.status_code}")
-                    return None
+                print(f"Model query failed: {response}")
+                return None
         
         except Exception as e:
             print(f"Error querying model: {e}")
@@ -374,8 +349,7 @@ if __name__ == "__main__":
     
     review = ReviewModel(
         model="qwen3:4b",
-        context_manager=context_mgr,
-        use_queue=False  # Direct API for testing
+        context_manager=context_mgr
     )
     
     result = review.review_system_state(triggered_by="test")
