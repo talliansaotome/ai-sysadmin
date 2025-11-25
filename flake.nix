@@ -2,7 +2,7 @@
   description = "Macha - AI-Powered Autonomous System Administrator";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs }: {
