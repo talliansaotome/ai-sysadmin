@@ -15,7 +15,7 @@ def seed_knowledge():
     knowledge_items = [
         # nh command knowledge
         {
-            "topic": "nh os switch",
+            "topic": "nixos-rebuild switch",
             "knowledge": "NixOS rebuild command. Takes 1-5 minutes normally, up to 1 HOUR for major updates with many packages. DO NOT retry if slow - this is normal. Use -u flag to update flake inputs first. Can use --target-host and --hostname for remote deployment.",
             "category": "command",
             "source": "documentation",
@@ -23,8 +23,8 @@ def seed_knowledge():
             "tags": ["nixos", "rebuild", "deployment"]
         },
         {
-            "topic": "nh os boot",
-            "knowledge": "NixOS rebuild for next boot only. Safer than 'switch' for high-risk changes - allows easy rollback. After 'nh os boot', need to reboot for changes to take effect. Use -u to update flake inputs.",
+            "topic": "nixos-rebuild boot",
+            "knowledge": "NixOS rebuild for next boot only. Safer than 'switch' for high-risk changes - allows easy rollback. After 'nixos-rebuild boot', need to reboot for changes to take effect. Use --update-input to update flake inputs.",
             "category": "command",
             "source": "documentation",
             "confidence": "high",
@@ -32,7 +32,7 @@ def seed_knowledge():
         },
         {
             "topic": "nh remote deployment",
-            "knowledge": "Format: 'nh os switch -u --target-host=HOSTNAME --hostname=HOSTNAME'. Builds locally and deploys to remote. Much cleaner than SSH'ing to run commands. Uses root SSH keys for authentication.",
+            "knowledge": "Format: 'nixos-rebuild switch --flake .#HOSTNAME --target-host=HOSTNAME'. Builds locally and deploys to remote. Much cleaner than SSH'ing to run commands. Uses root SSH keys for authentication.",
             "category": "command",
             "source": "documentation",
             "confidence": "high",

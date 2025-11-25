@@ -10,7 +10,7 @@
     nixosModules.default = import ./module.nix;
     
     # Alternative explicit name
-    nixosModules.macha-autonomous = import ./module.nix;
+    nixosModules.ai-sysadmin = import ./module.nix;
 
     # For development
     devShells = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (system:
@@ -25,7 +25,7 @@
         default = pkgs.mkShell {
           packages = [ pythonEnv pkgs.git ];
           shellHook = ''
-            echo "Macha Autonomous Development Environment"
+            echo "AI Sysadmin Development Environment"
             echo "Python packages: requests, psutil, chromadb"
           '';
         };

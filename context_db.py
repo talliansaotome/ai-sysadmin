@@ -732,7 +732,7 @@ Outcome: {outcome.get('status', 'pending') if outcome else 'pending'}
         Store a piece of operational knowledge
         
         Args:
-            topic: Main subject (e.g., "nh os switch", "systemd-journal-remote")
+            topic: Main subject (e.g., "nixos-rebuild switch", "systemd-journal-remote")
             knowledge: The actual knowledge/insight/pattern
             category: Type of knowledge (command, pattern, troubleshooting, performance, etc.)
             source: Where this came from (experience, documentation, user-provided)

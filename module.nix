@@ -17,6 +17,11 @@ let
     requests
     psutil
     chromadb
+    psycopg2
+    tiktoken
+    fastapi
+    uvicorn
+    websockets
   ]);
   
   # Main autonomous system package (use dynamic name based on aiName)
@@ -24,19 +29,28 @@ let
     #!${pythonEnv}/bin/python3
     import sys
     sys.path.insert(0, "${./.}")
-    from orchestrator import main
+    from orchestrator_new import main
     main()
   '';
   
   # Config file
   configFile = pkgs.writeText "ai-sysadmin-config.json" (builtins.toJSON {
     ai_name = cfg.aiName;
-    check_interval = cfg.checkInterval;
     autonomy_level = cfg.autonomyLevel;
     ollama_host = cfg.ollamaHost;
-    model = cfg.model;
     config_repo = cfg.configRepo;
     config_branch = cfg.configBranch;
+    # 4-layer architecture
+    trigger_interval = cfg.triggerInterval;
+    review_interval = cfg.reviewInterval;
+    context_size = cfg.contextSize;
+    trigger_model = cfg.triggerModel;
+    review_model = cfg.reviewModel;
+    meta_model = cfg.metaModel;
+    use_trigger_model = cfg.useTriggerModel;
+    # Legacy compatibility
+    check_interval = cfg.checkInterval;
+    model = cfg.model;
   });
 
 in {
@@ -145,6 +159,131 @@ in {
         This appears in chat interfaces, logs, and system prompts.
       '';
     };
+
+    # === NEW 4-LAYER ARCHITECTURE OPTIONS ===
+
+    triggerInterval = mkOption {
+      type = types.int;
+      default = 30;
+      description = "Layer 1: Trigger monitor check interval in seconds";
+    };
+
+    reviewInterval = mkOption {
+      type = types.int;
+      default = 60;
+      description = "Layer 3: Review model analysis interval in seconds";
+    };
+
+    contextSize = mkOption {
+      type = types.int;
+      default = 131072;
+      description = "Maximum context window size in tokens (default: 128K)";
+    };
+
+    triggerModel = mkOption {
+      type = types.str;
+      default = "qwen3:1b";
+      description = "Small model for log classification in Layer 1";
+    };
+
+    reviewModel = mkOption {
+      type = types.str;
+      default = "qwen3:4b";
+      description = "Model for continuous analysis in Layer 3";
+    };
+
+    metaModel = mkOption {
+      type = types.str;
+      default = "qwen3:14b";
+      description = "Large model for complex analysis in Layer 4";
+    };
+
+    useTriggerModel = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Whether to use AI model for log classification (disable for lower resource usage)";
+    };
+
+    # === TIMESCALEDB OPTIONS ===
+
+    timescaledb = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable TimescaleDB for metrics storage";
+      };
+
+      retentionDays = mkOption {
+        type = types.int;
+        default = 30;
+        description = "Days to retain metrics data";
+      };
+
+      port = mkOption {
+        type = types.int;
+        default = 5432;
+        description = "PostgreSQL/TimescaleDB port";
+      };
+    };
+
+    # === WEB INTERFACE OPTIONS ===
+
+    webInterface = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable web interface for system monitoring";
+      };
+
+      port = mkOption {
+        type = types.int;
+        default = 8080;
+        description = "Web interface port";
+      };
+
+      allowedHosts = mkOption {
+        type = types.listOf types.str;
+        default = [ "localhost" "127.0.0.1" ];
+        example = [ "localhost" "*.coven.systems" ];
+        description = "Allowed hostnames for web access";
+      };
+    };
+
+    # === MCP SERVER OPTIONS ===
+
+    mcpServer = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable MCP (Model Context Protocol) server";
+      };
+
+      port = mkOption {
+        type = types.int;
+        default = 8081;
+        description = "MCP server port";
+      };
+
+      respectAutonomy = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Respect autonomy level settings for MCP operations";
+      };
+    };
+
+    # === SAR/SYSSTAT OPTIONS ===
+
+    enableSar = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Enable sar (System Activity Report) data collection";
+    };
+
+    sarCollectFrequency = mkOption {
+      type = types.str;
+      default = "*:00/10";
+      description = "OnCalendar specification for sysstat data collection";
+    };
   };
   
   config = mkIf cfg.enable {
@@ -245,7 +384,7 @@ in {
         User = userName;
         Group = groupName;
         WorkingDirectory = stateDir;
-        ExecStart = "${mainScript}/bin/${cfg.aiName}-ai --mode continuous --autonomy ${cfg.autonomyLevel} --interval ${toString cfg.checkInterval}";
+        ExecStart = "${mainScript}/bin/${cfg.aiName}-ai --mode continuous --autonomy ${cfg.autonomyLevel} --trigger-interval ${toString cfg.triggerInterval} --review-interval ${toString cfg.reviewInterval} --context-size ${toString cfg.contextSize}";
         Restart = "on-failure";
         RestartSec = "30s";
         
@@ -306,6 +445,103 @@ in {
         ANONYMIZED_TELEMETRY = "False";
       };
     };
+    
+    # === NEW SERVICES ===
+    
+    # TimescaleDB Service
+    services.postgresql = mkIf cfg.timescaledb.enable {
+      enable = true;
+      port = cfg.timescaledb.port;
+      ensureDatabases = [ "ai_sysadmin" ];
+      ensureUsers = [{
+        name = "ai_sysadmin";
+        ensureDBOwnership = true;
+      }];
+      extraPlugins = with pkgs.postgresql.pkgs; [ timescaledb ];
+      settings = {
+        shared_preload_libraries = "timescaledb";
+      };
+    };
+    
+    # sysstat Service (for sar data)
+    services.sysstat = mkIf cfg.enableSar {
+      enable = true;
+      collect-frequency = cfg.sarCollectFrequency;
+    };
+    
+    # Web Interface Service
+    systemd.services."${cfg.aiName}-web" = mkIf cfg.webInterface.enable {
+      description = "AI Sysadmin Web Interface";
+      after = [ "network.target" "${mainServiceName}.service" ];
+      wantedBy = [ "multi-user.target" ];
+      
+      serviceConfig = {
+        Type = "simple";
+        User = userName;
+        Group = groupName;
+        WorkingDirectory = stateDir;
+        ExecStart = "${pythonEnv}/bin/python3 ${./.}/web_server.py";
+        Restart = "on-failure";
+        RestartSec = "10s";
+        
+        # Security
+        PrivateTmp = true;
+        NoNewPrivileges = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        ReadWritePaths = [ stateDir ];
+        
+        # Resource limits
+        MemoryLimit = "512M";
+        CPUQuota = "25%";
+      };
+      
+      environment = {
+        PYTHONPATH = toString ./.;
+        PORT = toString cfg.webInterface.port;
+        CHROMA_ENV_FILE = "";
+        ANONYMIZED_TELEMETRY = "False";
+      };
+    };
+    
+    # MCP Server Service
+    systemd.services."${cfg.aiName}-mcp" = mkIf cfg.mcpServer.enable {
+      description = "AI Sysadmin MCP Server";
+      after = [ "network.target" "${mainServiceName}.service" ];
+      wantedBy = [ "multi-user.target" ];
+      
+      serviceConfig = {
+        Type = "simple";
+        User = userName;
+        Group = groupName;
+        WorkingDirectory = stateDir;
+        ExecStart = "${pythonEnv}/bin/python3 ${./.}/mcp_server.py --autonomy ${cfg.autonomyLevel}";
+        Restart = "on-failure";
+        RestartSec = "10s";
+        
+        # Security
+        PrivateTmp = true;
+        NoNewPrivileges = false;  # May need sudo for actions
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        ReadWritePaths = [ stateDir ];
+        
+        # Resource limits
+        MemoryLimit = "512M";
+        CPUQuota = "25%";
+      };
+      
+      environment = {
+        PYTHONPATH = toString ./.;
+        PORT = toString cfg.mcpServer.port;
+        CHROMA_ENV_FILE = "";
+        ANONYMIZED_TELEMETRY = "False";
+      };
+    };
+    
+    # Open firewall ports if enabled
+    networking.firewall.allowedTCPPorts = lib.optionals cfg.webInterface.enable [ cfg.webInterface.port ]
+      ++ lib.optionals cfg.mcpServer.enable [ cfg.mcpServer.port ];
     
     # CLI tools for manual control and system packages
     environment.systemPackages = with pkgs; [
