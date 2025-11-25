@@ -4,7 +4,6 @@ AI Agent - Analyzes system state and proposes solutions using local LLMs
 """
 
 import json
-import requests
 import subprocess
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -31,18 +30,16 @@ class MachaAgent:
     
     def __init__(
         self,
-        ollama_host: str = "http://localhost:11434",
-        model: str = "gpt-oss:20b",
+        llm_backend = None,
+        backend_url: str = "http://localhost:8082/v1",
+        model: str = "qwen3:14b",
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
         context_db = None,
         config_repo: str = "git+https://git.coven.systems/lily/nixos-servers",
         config_branch: str = "main",
         ai_name: str = None,
-        enable_tools: bool = True,
-        use_queue: bool = True,
-        priority: str = "INTERACTIVE"
+        enable_tools: bool = True
     ):
-        self.ollama_host = ollama_host
         self.model = model
         self.state_dir = state_dir
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -52,6 +49,13 @@ class MachaAgent:
         self.config_branch = config_branch
         self.enable_tools = enable_tools
         
+        # Setup LLM backend
+        if llm_backend:
+            self.llm_backend = llm_backend
+        else:
+            from llm_backend import LlamaCppBackend
+            self.llm_backend = LlamaCppBackend(base_url=backend_url)
+        
         # Set AI name with fallback to short hostname
         if ai_name is None:
             import socket
@@ -60,26 +64,6 @@ class MachaAgent:
         
         # Generate system prompt with AI name substituted
         self.SYSTEM_PROMPT = self.SYSTEM_PROMPT_TEMPLATE.replace("{AI_NAME}", self.ai_name)
-        
-        # Queue settings
-        self.use_queue = use_queue
-        self.priority = priority
-        self.ollama_queue = None
-        
-        if use_queue:
-            try:
-                from ollama_queue import OllamaQueue, Priority
-                self.ollama_queue = OllamaQueue()
-                self.priority_level = getattr(Priority, priority, Priority.INTERACTIVE)
-            except (PermissionError, OSError):
-                # Silently fall back to direct API calls when queue is not accessible
-                # (e.g., regular users don't have access to /var/lib/ai-sysadmin/queues)
-                self.use_queue = False
-            except Exception as e:
-                # Log unexpected errors but still fall back gracefully
-                import sys
-                print(f"Note: Ollama queue unavailable ({type(e).__name__}), using direct API", file=sys.stderr)
-                self.use_queue = False
         
         # Initialize tools system
         self.tools = SysadminTools(safe_mode=False) if enable_tools else None
@@ -214,7 +198,7 @@ Respond ONLY with valid JSON:
 """
         
         try:
-            response = self._query_ollama(prompt, temperature=0.3, timeout=30)
+            response = self._query_llm(prompt, temperature=0.3, timeout=30)
             learnings = json.loads(response)
             
             if isinstance(learnings, list):
@@ -244,7 +228,7 @@ Respond ONLY with valid JSON:
         # Ask the AI to analyze
         prompt = self._create_analysis_prompt(context, system_context)
         
-        response = self._query_ollama(prompt)
+        response = self._query_llm(prompt)
         
         # Parse the AI's response
         analysis = self._parse_analysis_response(response)
@@ -328,7 +312,7 @@ YOUR RESPONSE MUST BE VALID JSON:
 RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
 """
         
-        response = self._query_ollama(prompt)
+        response = self._query_llm(prompt)
         
         try:
             # Try to extract JSON from response
@@ -501,52 +485,36 @@ RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
         
         return "\n".join(diagnostics)
     
-    def _query_ollama(self, prompt: str, temperature: float = 0.3) -> str:
-        """Query Ollama API (with optional queue)"""
-        # If queue is enabled, submit to queue and wait
-        if self.use_queue and self.ollama_queue:
-            try:
-                # Check if there's already an AUTONOMOUS request pending/processing
-                if self.priority_level.value == 1:  # AUTONOMOUS
-                    if self.ollama_queue.has_pending_with_priority(self.priority_level):
-                        print("[Queue] Skipping request - AUTONOMOUS check already in queue")
-                        return "System check already in progress - skipping duplicate request"
-                
-                payload = {
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "temperature": temperature,
-                    "timeout": 120
-                }
-                
-                request_id = self.ollama_queue.submit(
-                    request_type="generate",
-                    payload=payload,
-                    priority=self.priority_level
-                )
-                
-                result = self.ollama_queue.wait_for_result(request_id, timeout=300)
-                return result.get("response", "")
-            
-            except Exception as e:
-                print(f"Warning: Queue request failed, falling back to direct: {e}")
-                # Fall through to direct query
-        
-        # Direct query (no queue or queue failed)
+    def _query_llm(self, prompt: str, temperature: float = 0.3, max_tokens: int = 2000) -> str:
+        """Query LLM backend"""
         try:
-            response = requests.post(
-                f"{self.ollama_host}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "temperature": temperature,
-                },
-                timeout=120  # 2 minute timeout for large models
+            response = self.llm_backend.generate(
+                prompt=prompt,
+                model=self.model,
+                system_prompt=self.SYSTEM_PROMPT,
+                temperature=temperature,
+                max_tokens=max_tokens
             )
-            response.raise_for_status()
-            return response.json().get("response", "")
+            
+            if response and not response.startswith("Error:"):
+                return response
+            else:
+                print(f"ERROR: LLM backend error: {response}")
+                return json.dumps({
+                    "error": f"LLM backend error: {response}",
+                    "diagnosis": f"Check if model '{self.model}' is available",
+                    "action_type": "investigation",
+                    "risk_level": "high"
+                })
+        except Exception as e:
+            print(f"ERROR: Failed to query LLM: {str(e)}")
+            print(f"Model requested: {self.model}")
+            return json.dumps({
+                "error": f"Failed to query LLM: {str(e)}",
+                "diagnosis": "LLM backend unavailable",
+                "action_type": "investigation",
+                "risk_level": "high"
+            })
         except requests.exceptions.HTTPError as e:
             error_detail = ""
             try:
@@ -614,7 +582,7 @@ Output:
 
 Provide concise summary (max 600 chars)."""
                 
-                summary = self._query_ollama(extraction_prompt, temperature=0.1)
+                summary = self._query_llm(extraction_prompt, temperature=0.1)
                 return f"[Summary of {tool_name}]:\n{summary}\n\n[Full output: {output_size:,} chars cached as {cache_id}]"
             except Exception as e:
                 print(f"Warning: Failed to extract findings: {e}")
@@ -649,7 +617,7 @@ Chunk:
 
 Concise summary (max 400 chars)."""
                 
-                chunk_summary = self._query_ollama(extraction_prompt, temperature=0.1)
+                chunk_summary = self._query_llm(extraction_prompt, temperature=0.1)
                 chunk_summaries.append(f"[Chunk {chunk_num}]: {chunk_summary}")
             
             # Phase 2: Reduce - Combine chunk summaries if many chunks
@@ -666,7 +634,7 @@ Concise summary (max 400 chars)."""
 
 Provide unified summary (max 800 chars) covering all key points."""
                 
-                final_summary = self._query_ollama(reduce_prompt, temperature=0.1)
+                final_summary = self._query_llm(reduce_prompt, temperature=0.1)
                 return f"""[Chunked analysis of {tool_name}]:
 {final_summary}
 
@@ -773,7 +741,7 @@ Provide unified summary (max 800 chars) covering all key points."""
         
         return result
     
-    def _query_ollama_with_tools(
+    def _query_llm_with_tools(
         self,
         messages: List[Dict[str, str]],
         temperature: float = 0.3,
@@ -794,7 +762,7 @@ Provide unified summary (max 800 chars) covering all key points."""
         if not self.enable_tools or not self.tools:
             # Fallback to regular query
             user_content = " ".join([m["content"] for m in messages if m["role"] == "user"])
-            return self._query_ollama(user_content, temperature)
+            return self._query_llm(user_content, temperature)
         
         # Add system message if not present
         if not any(m["role"] == "system" for m in messages):

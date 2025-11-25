@@ -49,7 +49,9 @@ class NewOrchestrator:
         trigger_model: str = "qwen3:1b",
         review_model: str = "qwen3:4b",
         meta_model: str = "qwen3:14b",
-        ollama_host: str = "http://localhost:11434",
+        trigger_backend_url: str = "http://localhost:8080/v1",
+        review_backend_url: str = "http://localhost:8081/v1",
+        meta_backend_url: str = "http://localhost:8082/v1",
         use_trigger_model: bool = True
     ):
         """
@@ -65,7 +67,9 @@ class NewOrchestrator:
             trigger_model: Small model for log classification
             review_model: Model for continuous review
             meta_model: Large model for complex analysis
-            ollama_host: Ollama API endpoint
+            trigger_backend_url: LLM backend for trigger model
+            review_backend_url: LLM backend for review model
+            meta_backend_url: LLM backend for meta model
             use_trigger_model: Whether to use AI for trigger classification
         """
         self.trigger_interval = trigger_interval
@@ -104,11 +108,14 @@ class NewOrchestrator:
         
         # Initialize Layer 1: Trigger Monitor
         self._log("Initializing trigger monitor...")
+        from llm_backend import LlamaCppBackend
+        trigger_backend = LlamaCppBackend(base_url=trigger_backend_url)
+        
         self.trigger_monitor = TriggerMonitor(
             state_dir=state_dir,
             small_model=trigger_model,
             use_model=use_trigger_model,
-            ollama_host=ollama_host
+            llm_backend=trigger_backend
         )
         
         # Initialize executor
@@ -120,9 +127,11 @@ class NewOrchestrator:
         
         # Initialize Layer 3: Review Model
         self._log("Initializing review model...")
+        review_backend = LlamaCppBackend(base_url=review_backend_url)
+        
         self.review_model = ReviewModel(
             model=review_model,
-            ollama_host=ollama_host,
+            llm_backend=review_backend,
             context_manager=self.context_manager,
             executor=self.executor,
             state_dir=state_dir,
@@ -130,9 +139,11 @@ class NewOrchestrator:
         )
         
         # Layer 4: Meta Model (initialized on-demand)
+        self.meta_backend = LlamaCppBackend(base_url=meta_backend_url)
         self.meta_model_config = {
             'model': meta_model,
-            'ollama_host': ollama_host,
+            'llm_backend': self.meta_backend,
+            'backend_url': meta_backend_url,
             'state_dir': state_dir,
             'context_db': self.context_db
         }
@@ -344,7 +355,7 @@ Respond in JSON format."""
 
             # Query meta model
             self._log("  Layer 4: Querying meta model...")
-            response = self.meta_model._query_ollama(prompt, model=self.meta_model.model)
+            response = self.meta_model._query_llm(prompt)
             
             if response:
                 self._log(f"  Layer 4: Received response ({len(response)} chars)")
