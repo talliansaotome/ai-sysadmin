@@ -456,13 +456,14 @@ in {
       ensureDatabases = [ "ai_sysadmin" ];
       ensureUsers = [{
         name = userName;  # Use hostname-based user (e.g., macha-ai, alexander-ai)
-        ensureDBOwnership = true;
+        # Note: Not using ensureDBOwnership since database name != user name
+        # User gets access via peer authentication below
       }];
       settings = {
         port = cfg.timescaledb.port;
         shared_preload_libraries = "timescaledb";
       };
-      # Allow peer authentication for local connections
+      # Allow peer authentication for local connections (no password needed)
       authentication = pkgs.lib.mkOverride 10 ''
         local all all peer
         host all all 127.0.0.1/32 md5
