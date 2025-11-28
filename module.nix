@@ -453,7 +453,7 @@ in {
     services.postgresql = mkIf cfg.timescaledb.enable {
       enable = true;
       package = pkgs.postgresql_16.withPackages (ps: [ ps.timescaledb ]);
-      ensureDatabases = [ "ai_sysadmin" ];
+      ensureDatabases = [ userName ];
       ensureUsers = [{
         name = userName;  # Use hostname-based user (e.g., macha-ai, alexander-ai)
         ensureDBOwnership = true;
