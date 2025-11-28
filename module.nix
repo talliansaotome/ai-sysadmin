@@ -456,11 +456,7 @@ in {
       ensureDatabases = [ "ai_sysadmin" ];
       ensureUsers = [{
         name = userName;  # Use hostname-based user (e.g., macha-ai, alexander-ai)
-        ensurePermissions = {
-          "DATABASE ai_sysadmin" = "ALL PRIVILEGES";
-          "ALL TABLES IN SCHEMA public" = "ALL PRIVILEGES";
-          "ALL SEQUENCES IN SCHEMA public" = "ALL PRIVILEGES";
-        };
+        ensureDBOwnership = true;
       }];
       settings = {
         port = cfg.timescaledb.port;
@@ -473,7 +469,7 @@ in {
         host all all ::1/128 md5
       '';
     };
-    
+        
     # sysstat Service (for sar data)
     services.sysstat = mkIf cfg.enableSar {
       enable = true;
