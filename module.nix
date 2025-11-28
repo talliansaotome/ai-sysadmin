@@ -412,41 +412,6 @@ in {
       path = [ pkgs.git ];  # Make git available for config parsing
     };
     
-    # Ollama Queue Worker Service (serializes all Ollama requests)
-    systemd.services."${queueWorkerServiceName}" = {
-      description = "AI Ollama Queue Worker (${cfg.aiName})";
-      after = [ "network.target" "ollama.service" ];
-      wants = [ "ollama.service" ];
-      wantedBy = [ "multi-user.target" ];
-      
-      serviceConfig = {
-        Type = "simple";
-        User = userName;
-        Group = groupName;
-        WorkingDirectory = stateDir;
-        ExecStart = "${pythonEnv}/bin/python3 ${./.}/ollama_worker.py";
-        Restart = "on-failure";
-        RestartSec = "10s";
-        
-        # Security hardening
-        PrivateTmp = true;
-        NoNewPrivileges = true;
-        ProtectSystem = "strict";
-        ProtectHome = true;
-        ReadWritePaths = [ "${stateDir}/queues" "${stateDir}/tool_cache" ];
-        
-        # Resource limits
-        MemoryLimit = "512M";
-        CPUQuota = "25%";
-      };
-      
-      environment = {
-        PYTHONPATH = toString ./.;
-        CHROMA_ENV_FILE = "";
-        ANONYMIZED_TELEMETRY = "False";
-      };
-    };
-    
     # === NEW SERVICES ===
     
     # TimescaleDB Service

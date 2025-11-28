@@ -750,16 +750,16 @@ Or respond with regular text if no tools are needed."""
                     # Execute the tool
                     tool_result = self.tools.execute_tool(function_name, arguments)
                     
-                        # Process result hierarchically
+                    # Process result hierarchically
                     processed_result = self._process_tool_result_hierarchical(function_name, tool_result)
                     
-                        # Add result to prompt for next iteration
-                        enhanced_prompt = f"""Previous tool call: {function_name}
+                    # Add result to prompt for next iteration
+                    enhanced_prompt = f"""Previous tool call: {function_name}
 Result: {processed_result}
 
 Based on this result, what should we do next?
 {tools_description}"""
-                        continue
+                    continue
                 except json.JSONDecodeError:
                     pass
                 
