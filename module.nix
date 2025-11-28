@@ -456,8 +456,11 @@ in {
       ensureDatabases = [ "ai_sysadmin" ];
       ensureUsers = [{
         name = userName;  # Use hostname-based user (e.g., macha-ai, alexander-ai)
-        # Note: Not using ensureDBOwnership since database name != user name
-        # User gets access via peer authentication below
+        ensurePermissions = {
+          "DATABASE ai_sysadmin" = "ALL PRIVILEGES";
+          "ALL TABLES IN SCHEMA public" = "ALL PRIVILEGES";
+          "ALL SEQUENCES IN SCHEMA public" = "ALL PRIVILEGES";
+        };
       }];
       settings = {
         port = cfg.timescaledb.port;
