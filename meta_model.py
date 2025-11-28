@@ -483,12 +483,12 @@ RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
                 return response
             else:
                 print(f"ERROR: LLM backend error: {response}")
-                return json.dumps({
+            return json.dumps({
                     "error": f"LLM backend error: {response}",
                     "diagnosis": f"Check if model '{self.model}' is available",
-                    "action_type": "investigation",
-                    "risk_level": "high"
-                })
+                "action_type": "investigation",
+                "risk_level": "high"
+            })
         except Exception as e:
             print(f"ERROR: Failed to query LLM: {str(e)}")
             print(f"Model requested: {self.model}")
@@ -744,15 +744,15 @@ Or respond with regular text if no tools are needed."""
                     if "tool" in tool_call and "arguments" in tool_call:
                         function_name = tool_call["tool"]
                         arguments = tool_call["arguments"]
-                        
-                        print(f"  → Tool call: {function_name}({arguments})")
-                        
-                        # Execute the tool
-                        tool_result = self.tools.execute_tool(function_name, arguments)
-                        
+                    
+                    print(f"  → Tool call: {function_name}({arguments})")
+                    
+                    # Execute the tool
+                    tool_result = self.tools.execute_tool(function_name, arguments)
+                    
                         # Process result hierarchically
-                        processed_result = self._process_tool_result_hierarchical(function_name, tool_result)
-                        
+                    processed_result = self._process_tool_result_hierarchical(function_name, tool_result)
+                    
                         # Add result to prompt for next iteration
                         enhanced_prompt = f"""Previous tool call: {function_name}
 Result: {processed_result}

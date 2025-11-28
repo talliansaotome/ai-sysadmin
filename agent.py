@@ -506,7 +506,7 @@ RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
                     "action_type": "investigation",
                     "risk_level": "high"
                 })
-        except Exception as e:
+            except Exception as e:
             print(f"ERROR: Failed to query LLM: {str(e)}")
             print(f"Model requested: {self.model}")
             return json.dumps({
