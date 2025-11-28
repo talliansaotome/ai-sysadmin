@@ -3,6 +3,8 @@
 TimescaleDB Integration - Store and query time-series metrics
 """
 
+import os
+import pwd
 import psycopg2
 from psycopg2.extras import execute_values
 from typing import Dict, List, Any, Optional
@@ -18,10 +20,14 @@ class TimeSeriesDB:
         host: str = "localhost",
         port: int = 5432,
         database: str = "ai_sysadmin",
-        user: str = "ai_sysadmin",
+        user: str = None,
         password: str = None
     ):
         """Initialize TimescaleDB connection"""
+        # Auto-detect current user if not specified (e.g., macha-ai, alexander-ai)
+        if user is None:
+            user = pwd.getpwuid(os.getuid()).pw_name
+        
         self.conn_params = {
             "host": host,
             "port": port,

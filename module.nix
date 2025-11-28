@@ -22,6 +22,7 @@ let
     fastapi
     uvicorn
     websockets
+    openai
   ]);
   
   # Main autonomous system package (use dynamic name based on aiName)
@@ -454,13 +455,19 @@ in {
       package = pkgs.postgresql_16.withPackages (ps: [ ps.timescaledb ]);
       ensureDatabases = [ "ai_sysadmin" ];
       ensureUsers = [{
-        name = "ai_sysadmin";
+        name = userName;  # Use hostname-based user (e.g., macha-ai, alexander-ai)
         ensureDBOwnership = true;
       }];
       settings = {
         port = cfg.timescaledb.port;
         shared_preload_libraries = "timescaledb";
       };
+      # Allow peer authentication for local connections
+      authentication = pkgs.lib.mkOverride 10 ''
+        local all all peer
+        host all all 127.0.0.1/32 md5
+        host all all ::1/128 md5
+      '';
     };
     
     # sysstat Service (for sar data)
