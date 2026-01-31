@@ -8,6 +8,11 @@ Layer 3: Review Model - Continuous analysis with small model
 Layer 4: Meta Model - On-demand deep analysis and user interaction
 """
 
+import os
+# Disable telemetry early
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY_ENABLED"] = "False"
+
 import json
 import time
 import signal

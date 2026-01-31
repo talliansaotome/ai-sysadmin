@@ -9,8 +9,10 @@ from typing import Dict, List, Any, Optional, Set
 from datetime import datetime
 from pathlib import Path
 
-# Set environment variable BEFORE importing chromadb to prevent .env file reading
-os.environ.setdefault("CHROMA_ENV_FILE", "")
+# Set environment variable BEFORE importing chromadb to prevent .env file reading and disable telemetry
+os.environ["CHROMA_ENV_FILE"] = ""
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY_ENABLED"] = "False"
 
 import chromadb
 from chromadb.config import Settings
@@ -32,8 +34,7 @@ class ContextDatabase:
             port=port,
             settings=Settings(
                 anonymized_telemetry=False,
-                allow_reset=False,
-                chroma_api_impl="chromadb.api.fastapi.FastAPI"
+                allow_reset=False
             )
         )
         

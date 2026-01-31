@@ -24,6 +24,99 @@ let
     websockets
     openai
   ]);
+
+  # Model Downloader Script
+  modelDownloaderScript = pkgs.writeScriptBin "${cfg.aiName}-seed-models" ''
+    #!${pythonEnv}/bin/python3
+    import os
+    import sys
+    import json
+    import requests
+    from pathlib import Path
+
+    CONFIG_PATH = Path("/etc/ai-sysadmin/config.json")
+    
+    # Mapping of common models to URLs
+    MODEL_URLS = {
+        "qwen3-1b": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q8_0.gguf",
+        "qwen3-4b": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q8_0.gguf",
+        "qwen3-14b": "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct-GGUF/resolve/main/qwen2.5-14b-instruct-q4_k_m.gguf",
+        "qwen3:1b": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q8_0.gguf",
+        "qwen3:4b": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q8_0.gguf",
+        "qwen3:14b": "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct-GGUF/resolve/main/qwen2.5-14b-instruct-q4_k_m.gguf"
+    }
+
+    def download_model(name, model_dir):
+        # Resolve URL
+        url = MODEL_URLS.get(name)
+        if not url:
+            print(f"Unknown model: {name}. No download URL mapped.")
+            return False
+        
+        # Ensure name ends in .gguf for the file
+        filename = name if name.endswith(".gguf") else f"{name}.gguf"
+        filename = filename.replace(":", "-") # Safe filename
+        path = model_dir / filename
+        
+        if path.exists():
+            print(f"Model {filename} already exists at {path}")
+            return True
+        
+        print(f"Downloading {filename} from {url}...")
+        try:
+            response = requests.get(url, stream=True, timeout=30)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            
+            with open(path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            percent = (downloaded / total_size) * 100
+                            print(f"\rProgress: {percent:.1f}% ({downloaded}/{total_size} bytes)", end="")
+            
+            print(f"\nSuccessfully downloaded {filename}")
+            return True
+        except Exception as e:
+            print(f"\nError downloading {filename}: {e}")
+            if path.exists():
+                path.unlink()
+            return False
+
+    def main():
+        if not CONFIG_PATH.exists():
+            print(f"Config not found at {CONFIG_PATH}")
+            return
+
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+        
+        model_dir = Path(config.get("model_dir", "/var/lib/ai-sysadmin/models"))
+        model_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Get models from all layers
+        models_to_download = set()
+        for key in ["trigger_model", "review_model", "meta_model"]:
+            if config.get(key):
+                models_to_download.add(config[key])
+        
+        print(f"Synchronizing models to {model_dir}: {', '.join(models_to_download)}")
+        
+        success = True
+        for model in models_to_download:
+            if not download_model(model, model_dir):
+                success = False
+        
+        if not success:
+            sys.exit(1)
+
+    if __name__ == "__main__":
+        main()
+  '';
   
   # Main autonomous system package (use dynamic name based on aiName)
   mainScript = pkgs.writeScriptBin "${cfg.aiName}-ai" ''
@@ -334,7 +427,8 @@ in {
     # Llama.cpp services for each layer
     systemd.services.llama-trigger = mkIf (cfg.llama-cpp.enable && cfg.useTriggerModel) {
       description = "Llama.cpp Trigger Model Server";
-      after = [ "network.target" ];
+      after = [ "network.target" "ai-sysadmin-model-downloader.service" ];
+      wants = [ "ai-sysadmin-model-downloader.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.triggerModel}.gguf --port 8080 --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers 99 --threads ${toString cfg.threads}";
@@ -346,7 +440,8 @@ in {
 
     systemd.services.llama-review = mkIf cfg.llama-cpp.enable {
       description = "Llama.cpp Review Model Server";
-      after = [ "network.target" ];
+      after = [ "network.target" "ai-sysadmin-model-downloader.service" ];
+      wants = [ "ai-sysadmin-model-downloader.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.reviewModel}.gguf --port 8081 --host 127.0.0.1 --ctx-size 32768 --n-gpu-layers 99 --threads ${toString cfg.threads}";
@@ -358,13 +453,27 @@ in {
 
     systemd.services.llama-meta = mkIf cfg.llama-cpp.enable {
       description = "Llama.cpp Meta Model Server";
-      after = [ "network.target" ];
+      after = [ "network.target" "ai-sysadmin-model-downloader.service" ];
+      wants = [ "ai-sysadmin-model-downloader.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.metaModel}.gguf --port 8082 --host 127.0.0.1 --ctx-size ${toString cfg.contextSize} --n-gpu-layers 99 --threads ${toString cfg.threads}";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
+      };
+    };
+
+    systemd.services.ai-sysadmin-model-downloader = {
+      description = "AI Sysadmin Model Downloader";
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${modelDownloaderScript}/bin/${cfg.aiName}-seed-models";
+        User = userName;
+        Group = groupName;
+        RemainAfterExit = true;
       };
     };
 

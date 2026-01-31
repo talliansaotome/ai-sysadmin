@@ -197,6 +197,17 @@ class TriggerMonitor:
         
         try:
             for service in self.CRITICAL_SERVICES:
+                # Check if service exists first
+                exists_check = subprocess.run(
+                    ["systemctl", "list-unit-files", f"{service}.service"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                
+                if f"{service}.service" not in exists_check.stdout:
+                    continue  # Service not found on this system, skip it
+                
                 # Check service status
                 result = subprocess.run(
                     ["systemctl", "is-active", service],

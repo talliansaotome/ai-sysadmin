@@ -19,15 +19,26 @@ class TimeSeriesDB:
         self,
         host: str = "localhost",
         port: int = 5432,
-        database: str = "ai_sysadmin",
+        database: str = None,
         user: str = None,
         password: str = None
     ):
         """Initialize TimescaleDB connection"""
         # Auto-detect current user if not specified (e.g., macha-ai, alexander-ai)
         if user is None:
-            user = pwd.getpwuid(os.getuid()).pw_name
+            try:
+                user = pwd.getpwuid(os.getuid()).pw_name
+            except:
+                user = os.environ.get("USER", "postgres")
         
+        # Default database to username if not specified
+        if database is None:
+            database = user
+        
+        # Force Unix socket for localhost to enable peer authentication
+        if host == "localhost":
+            host = ""
+            
         self.conn_params = {
             "host": host,
             "port": port,
