@@ -218,7 +218,7 @@ Active Entries: {len(self.context_entries)}
     def _get_metrics_summary(self) -> str:
         """Get recent metrics summary from TimescaleDB"""
         import socket
-        hostname = f"{socket.gethostname()}.coven.systems"
+        hostname = socket.gethostname()
         
         try:
             # Get latest metrics
@@ -337,7 +337,7 @@ Active Entries: {len(self.context_entries)}
     def _store_event_in_databases(self, event: Dict[str, Any], source: str):
         """Store event in appropriate databases for long-term storage"""
         import socket
-        hostname = f"{socket.gethostname()}.coven.systems"
+        hostname = socket.gethostname()
         
         event_type = event.get('type', 'unknown')
         
@@ -390,7 +390,7 @@ Active Entries: {len(self.context_entries)}
             return {}
         
         import socket
-        hostname = f"{socket.gethostname()}.coven.systems"
+        hostname = socket.gethostname()
         
         try:
             stats = self.timeseries_db.get_metric_statistics(hostname, metric_name, hours)

@@ -246,7 +246,8 @@ class AISysadminMCPServer:
         """Get current system status"""
         import psutil
         
-        hostname = f"{socket.gethostname()}.coven.systems"
+        import socket
+        hostname = socket.gethostname()
         
         status = {
             "hostname": hostname,
@@ -289,7 +290,8 @@ class AISysadminMCPServer:
         if not self.timeseries_db:
             return json.dumps({"error": "TimescaleDB not available"})
         
-        hostname = f"{socket.gethostname()}.coven.systems"
+        import socket
+        hostname = socket.gethostname()
         
         try:
             metrics = self.timeseries_db.query_metrics(

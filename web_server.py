@@ -61,8 +61,8 @@ async def root():
 @app.get("/api/status")
 async def get_status() -> Dict[str, Any]:
     """Get current system status"""
-    hostname = f"{socket.gethostname()}.coven.systems"
-    
+            import socket
+            hostname = socket.gethostname()    
     # Get basic metrics
     cpu_percent = psutil.cpu_percent(interval=0.5)
     memory = psutil.virtual_memory()
@@ -183,8 +183,8 @@ async def get_metrics_history(hours: int = 24) -> Dict[str, Any]:
     if not timeseries_db:
         return {"error": "TimescaleDB not available"}
     
-    hostname = f"{socket.gethostname()}.coven.systems"
-    
+            import socket
+            hostname = socket.gethostname()    
     try:
         metrics = timeseries_db.query_metrics(
             hostname,

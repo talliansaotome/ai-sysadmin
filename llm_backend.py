@@ -27,23 +27,23 @@ class LLMBackend(ABC):
         stream: bool = False,
         **kwargs
     ) -> str:
+        pass
+
+    @abstractmethod
+    def generate_chat(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        stream: bool = False,
+        **kwargs
+    ) -> str:
         """
-        Generate text from the LLM
-        
-        Args:
-            prompt: User prompt
-            model: Model identifier (may be ignored by some backends)
-            system_prompt: Optional system prompt
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens to generate
-            stream: Whether to stream the response
-            **kwargs: Additional backend-specific options
-        
-        Returns:
-            Generated text
+        Generate text from chat messages
         """
         pass
-    
+
     @abstractmethod
     def is_available(self) -> bool:
         """Check if the backend is available and responding"""
@@ -109,6 +109,38 @@ class LlamaCppBackend(LLMBackend):
         
         except Exception as e:
             print(f"Error generating from llama.cpp: {e}")
+            return f"Error: {e}"
+
+    def generate_chat(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        stream: bool = False,
+        **kwargs
+    ) -> str:
+        """Generate text using llama.cpp chat API"""
+        try:
+            response = self.client.chat.completions.create(
+                model=model or "local-model",
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=stream,
+                **kwargs
+            )
+            
+            if stream:
+                full_response = ""
+                for chunk in response:
+                    if chunk.choices[0].delta.content:
+                        full_response += chunk.choices[0].delta.content
+                return full_response
+            else:
+                return response.choices[0].message.content
+        except Exception as e:
+            print(f"Error generating chat from llama.cpp: {e}")
             return f"Error: {e}"
     
     def is_available(self) -> bool:
@@ -178,6 +210,43 @@ class OllamaBackend(LLMBackend):
         
         except Exception as e:
             print(f"Error generating from Ollama: {e}")
+            return f"Error: {e}"
+
+    def generate_chat(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        stream: bool = False,
+        **kwargs
+    ) -> str:
+        """Generate text using Ollama chat API"""
+        payload = {
+            "model": model or "qwen3:14b",
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+                **kwargs
+            }
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                timeout=120
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("message", {}).get("content", "")
+            else:
+                return f"Error: HTTP {response.status_code}"
+        except Exception as e:
+            print(f"Error generating chat from Ollama: {e}")
             return f"Error: {e}"
     
     def is_available(self) -> bool:

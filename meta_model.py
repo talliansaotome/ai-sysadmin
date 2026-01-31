@@ -56,7 +56,7 @@ class MetaModel:
         model: str = "qwen3:14b",
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
         context_db = None,
-        config_repo: str = "git+https://git.coven.systems/lily/nixos-servers",
+        config_repo: str = None,
         config_branch: str = "main",
         ai_name: str = None,
         enable_tools: bool = True
@@ -66,7 +66,7 @@ class MetaModel:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.decision_log = self.state_dir / "decisions.jsonl"
         self.context_db = context_db
-        self.config_repo = config_repo
+        self.config_repo = config_repo or "git+https://git.local/lily/nixos-servers"
         self.config_branch = config_branch
         self.enable_tools = enable_tools
         
@@ -700,70 +700,73 @@ Provide unified summary (max 800 chars) covering all key points."""
         max_iterations: int = 30
     ) -> str:
         """
-        Query LLM with tool support using simplified prompting.
-        Note: llama.cpp doesn't have native tool calling, so we use prompt-based tools.
-        
-        Args:
-            messages: List of chat messages [{"role": "user", "content": "..."}]
-            temperature: Generation temperature
-            max_iterations: Maximum number of tool-calling iterations
-            
-        Returns:
-            Final text response from the model
+        Query LLM with tool support using prompting and message history.
         """
         if not self.enable_tools or not self.tools:
             # Fallback to regular query
-            user_content = " ".join([m["content"] for m in messages if m["role"] == "user"])
-            return self._query_llm(user_content, temperature)
+            prompt = messages[-1]["content"] if messages else ""
+            return self._query_llm(prompt, temperature)
         
-        # For now, use simplified approach: describe tools in prompt and parse responses
-        # This is a temporary solution until we implement proper function calling
-        user_content = " ".join([m["content"] for m in messages if m["role"] == "user"])
-        
+        # Ensure system message is present with tool descriptions
         tool_definitions = self.tools.get_tool_definitions()
         tools_description = "\n\nAvailable tools:\n" + json.dumps(tool_definitions, indent=2)
         
-        enhanced_prompt = f"""{user_content}
-
-{tools_description}
-
-You can use these tools by responding with JSON in this format:
-{{"tool": "tool_name", "arguments": {{"arg1": "value1"}}}}
-
-Or respond with regular text if no tools are needed."""
+        system_msg = self.SYSTEM_PROMPT + f"\n\nYou have access to system administration tools. {tools_description}\n\nTo use a tool, respond ONLY with a JSON object in this format:\n{{\"tool\": \"tool_name\", \"arguments\": {{\"arg1\": \"value1\"}}}}\n\nAfter you receive the tool output, continue your analysis. When you have a final answer, provide it as regular text."
         
-        # Simple tool calling loop (simplified from Ollama's native support)
+        # Build initial messages list
+        chat_messages = [{"role": "system", "content": system_msg}]
+        # Filter out existing system messages and add user/assistant messages
+        for msg in messages:
+            if msg["role"] != "system":
+                chat_messages.append(msg)
+        
         for iteration in range(max_iterations):
             try:
-                response_text = self._query_llm(enhanced_prompt, temperature)
+                # Prune messages to stay within context
+                pruned_messages = self._prune_messages(chat_messages)
                 
-                # Check if response contains tool call (simple JSON parsing)
+                response_text = self.llm_backend.generate_chat(
+                    messages=pruned_messages,
+                    model=self.model,
+                    temperature=temperature
+                )
+                
+                # Add assistant response to history
+                chat_messages.append({"role": "assistant", "content": response_text})
+                
+                # Check if response contains tool call
                 try:
-                    # Try to parse as JSON tool call
-                    tool_call = json.loads(response_text)
-                    if "tool" in tool_call and "arguments" in tool_call:
+                    # Clean response text if model added markdown blocks
+                    clean_text = response_text.strip()
+                    if clean_text.startswith("```json"):
+                        clean_text = clean_text[7:]
+                    if clean_text.endswith("```"):
+                        clean_text = clean_text[:-3]
+                    clean_text = clean_text.strip()
+                    
+                    tool_call = json.loads(clean_text)
+                    if isinstance(tool_call, dict) and "tool" in tool_call and "arguments" in tool_call:
                         function_name = tool_call["tool"]
                         arguments = tool_call["arguments"]
-                    
-                    print(f"  → Tool call: {function_name}({arguments})")
-                    
-                    # Execute the tool
-                    tool_result = self.tools.execute_tool(function_name, arguments)
-                    
-                    # Process result hierarchically
-                    processed_result = self._process_tool_result_hierarchical(function_name, tool_result)
-                    
-                    # Add result to prompt for next iteration
-                    enhanced_prompt = f"""Previous tool call: {function_name}
-Result: {processed_result}
-
-Based on this result, what should we do next?
-{tools_description}"""
-                    continue
-                except json.JSONDecodeError:
+                        
+                        print(f"  → Tool call: {function_name}({arguments})")
+                        
+                        # Execute the tool
+                        tool_result = self.tools.execute_tool(function_name, arguments)
+                        
+                        # Process result
+                        processed_result = self._process_tool_result_hierarchical(function_name, tool_result)
+                        
+                        # Add result to history
+                        chat_messages.append({
+                            "role": "user", 
+                            "content": f"Tool '{function_name}' output:\n{processed_result}"
+                        })
+                        continue
+                except (json.JSONDecodeError, TypeError):
                     pass
                 
-                # No tool call, return the response
+                # If no tool call was parsed or execution failed, return the text
                 return response_text
                 
             except Exception as e:
@@ -775,8 +778,7 @@ Based on this result, what should we do next?
                     "risk_level": "high"
                 })
         
-        # If we hit max iterations, return what we have
-        return "Maximum tool calling iterations reached. Unable to complete request."
+        return "Maximum tool calling iterations reached."
     
     def _parse_analysis_response(self, response: str) -> Dict[str, Any]:
         """Parse the AI's analysis response"""
@@ -846,8 +848,8 @@ Based on this result, what should we do next?
 if __name__ == "__main__":
     import sys
     
-    # Test the agent
-    agent = MachaAgent()
+    # Test the meta model
+    meta = MetaModel()
     
     if len(sys.argv) > 1 and sys.argv[1] == "test":
         # Test with sample data
@@ -860,13 +862,13 @@ if __name__ == "__main__":
             "network": {"internet_reachable": True}
         }
         
-        print("Testing agent analysis...")
-        analysis = agent.analyze_system_state(test_data)
+        print("Testing meta model analysis...")
+        analysis = meta.analyze_system_state(test_data)
         print(json.dumps(analysis, indent=2))
         
         if analysis.get("issues"):
             print("\nTesting fix proposal...")
-            fix = agent.propose_fix(
+            fix = meta.propose_fix(
                 analysis["issues"][0]["description"],
                 test_data
             )

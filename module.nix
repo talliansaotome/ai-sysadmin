@@ -38,20 +38,22 @@ let
   configFile = pkgs.writeText "ai-sysadmin-config.json" (builtins.toJSON {
     ai_name = cfg.aiName;
     autonomy_level = cfg.autonomyLevel;
-    ollama_host = cfg.ollamaHost;
     config_repo = cfg.configRepo;
     config_branch = cfg.configBranch;
-    # 4-layer architecture
-    trigger_interval = cfg.triggerInterval;
-    review_interval = cfg.reviewInterval;
-    context_size = cfg.contextSize;
+    model_dir = cfg.modelDir;
+    # 4-layer architecture model backends
+    trigger_backend = cfg.triggerBackend;
+    review_backend = cfg.reviewBackend;
+    meta_backend = cfg.metaBackend;
+    # 4-layer architecture models
     trigger_model = cfg.triggerModel;
     review_model = cfg.reviewModel;
     meta_model = cfg.metaModel;
+    # Intervals and sizes
+    trigger_interval = cfg.triggerInterval;
+    review_interval = cfg.reviewInterval;
+    context_size = cfg.contextSize;
     use_trigger_model = cfg.useTriggerModel;
-    # Legacy compatibility
-    check_interval = cfg.checkInterval;
-    model = cfg.model;
   });
 
 in {
@@ -70,50 +72,60 @@ in {
       '';
     };
     
-    checkInterval = mkOption {
-      type = types.int;
-      default = 300;
-      description = "Interval in seconds between system checks";
+    llama-cpp = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable llama.cpp for AI inference";
+      };
+
+      acceleration = mkOption {
+        type = types.nullOr (types.enum [ "rocm" "cuda" "cpu" ]);
+        default = "cpu";
+        description = "GPU acceleration for llama.cpp";
+      };
     };
-    
-    ollamaHost = mkOption {
+
+    triggerModel = mkOption {
       type = types.str;
-      default = "http://localhost:11434";
-      description = "Ollama API host";
+      default = "qwen3:1b";
+      description = "Small model for log classification in Layer 1";
     };
-    
-    model = mkOption {
+
+    triggerBackend = mkOption {
       type = types.str;
-      default = "gpt-oss:20b";
-      description = "LLM model to use for reasoning";
+      default = "http://127.0.0.1:8080/v1";
+      description = "LLM backend URL for Layer 1";
     };
-    
-    ollamaAcceleration = mkOption {
-      type = types.nullOr (types.enum [ "rocm" "cuda" ]);
-      default = null;
-      example = "rocm";
-      description = ''
-        GPU acceleration for Ollama:
-        - "rocm" for AMD GPUs
-        - "cuda" for NVIDIA GPUs
-        - null for CPU-only (slower but works everywhere)
-      '';
+
+    reviewModel = mkOption {
+      type = types.str;
+      default = "qwen3:4b";
+      description = "Model for continuous analysis in Layer 3";
     };
-    
-    preloadModels = mkOption {
-      type = types.bool;
-      default = false;
-      description = ''
-        Automatically download AI models on first run.
-        When enabled, downloads ~50GB+ of models including gpt-oss, qwen3, gemma3, etc.
-        When disabled, models will be downloaded on-demand when first used.
-      '';
+
+    reviewBackend = mkOption {
+      type = types.str;
+      default = "http://127.0.0.1:8081/v1";
+      description = "LLM backend URL for Layer 3";
     };
-    
+
+    metaModel = mkOption {
+      type = types.str;
+      default = "qwen3:14b";
+      description = "Large model for complex analysis in Layer 4";
+    };
+
+    metaBackend = mkOption {
+      type = types.str;
+      default = "http://127.0.0.1:8082/v1";
+      description = "LLM backend URL for Layer 4";
+    };
+
     uid = mkOption {
       type = types.int;
       default = 2501;
-      description = "UID for the AI system user (${aiName}-ai)";
+      description = "UID for the AI system user (${cfg.aiName}-ai)";
     };
     
     gotifyUrl = mkOption {
@@ -140,7 +152,7 @@ in {
       type = types.str;
       default = if config.programs.nh.flake != null 
                 then config.programs.nh.flake
-                else "git+https://git.coven.systems/lily/nixos-servers";
+                else "git+https://git.local/lily/nixos-servers";
       description = "URL of the NixOS configuration repository (auto-detected from programs.nh.flake if available)";
     };
 
@@ -161,8 +173,6 @@ in {
       '';
     };
 
-    # === NEW 4-LAYER ARCHITECTURE OPTIONS ===
-
     triggerInterval = mkOption {
       type = types.int;
       default = 30;
@@ -181,22 +191,10 @@ in {
       description = "Maximum context window size in tokens (default: 128K)";
     };
 
-    triggerModel = mkOption {
+    modelDir = mkOption {
       type = types.str;
-      default = "qwen3:1b";
-      description = "Small model for log classification in Layer 1";
-    };
-
-    reviewModel = mkOption {
-      type = types.str;
-      default = "qwen3:4b";
-      description = "Model for continuous analysis in Layer 3";
-    };
-
-    metaModel = mkOption {
-      type = types.str;
-      default = "qwen3:14b";
-      description = "Large model for complex analysis in Layer 4";
+      default = "${stateDir}/models";
+      description = "Directory where AI models are stored";
     };
 
     useTriggerModel = mkOption {
@@ -308,36 +306,65 @@ in {
       };
     };
     
-    # Ollama service for AI inference
-    services.ollama = {
-      enable = true;
-      acceleration = cfg.ollamaAcceleration;
-      host = "0.0.0.0";
-      port = 11434;
-      environmentVariables = {
-        "OLLAMA_DEBUG" = "1";
-        "OLLAMA_KEEP_ALIVE" = "600";
-        "OLLAMA_NEW_ENGINE" = "true";
-        "OLLAMA_CONTEXT_LENGTH" = "131072";
-      };
-      openFirewall = false;  # Keep internal only
-      loadModels = mkIf cfg.preloadModels [
-        "gpt-oss"
-        "gpt-oss:20b"
-        "qwen3"
-        "qwen3:4b-instruct-2507-fp16"
-        "qwen3:8b-fp16"
-        "gemma3"
-        "mistral:7b"
-        "chroma/all-minilm-l6-v2-f32:latest"
-      ];
-    };
-    
     # ChromaDB service for vector storage
     services.chromadb = {
       enable = true;
       port = 8000;
       dbpath = "/var/lib/chromadb";
+    };
+    
+    # Llama.cpp services for each layer
+    systemd.services.llama-trigger = mkIf (cfg.llama-cpp.enable && cfg.useTriggerModel) {
+      description = "Llama.cpp Trigger Model Server";
+      after = [ "network.target" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.triggerModel}.gguf --port 8080 --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers 99";
+        Restart = "on-failure";
+        User = userName;
+        Group = groupName;
+      };
+    };
+
+    systemd.services.llama-review = mkIf cfg.llama-cpp.enable {
+      description = "Llama.cpp Review Model Server";
+      after = [ "network.target" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.reviewModel}.gguf --port 8081 --host 127.0.0.1 --ctx-size 32768 --n-gpu-layers 99";
+        Restart = "on-failure";
+        User = userName;
+        Group = groupName;
+      };
+    };
+
+    systemd.services.llama-meta = mkIf cfg.llama-cpp.enable {
+      description = "Llama.cpp Meta Model Server";
+      after = [ "network.target" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.metaModel}.gguf --port 8082 --host 127.0.0.1 --ctx-size ${toString cfg.contextSize} --n-gpu-layers 99";
+        Restart = "on-failure";
+        User = userName;
+        Group = groupName;
+      };
+    };
+
+    # OpenAI API Server for Meta Model
+    systemd.services.ai-sysadmin-api = {
+      description = "AI Sysadmin OpenAI-Compatible API Server";
+      after = [ "network.target" "llama-meta.service" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        ExecStart = "${pythonEnv}/bin/python3 ${./.}/openai_api_server.py --port 8083";
+        Restart = "on-failure";
+        User = userName;
+        Group = groupName;
+        WorkingDirectory = stateDir;
+      };
+      environment = {
+        PYTHONPATH = toString ./.;
+      };
     };
     
     # Give the user permissions it needs
@@ -359,25 +386,19 @@ in {
     # Config file
     environment.etc."ai-sysadmin/config.json".source = configFile;
     
-    # State directory and queue directories (world-writable queues for multi-user access)
-    # Using 'z' to set permissions even if directory exists
+    # State directory and tool cache
     systemd.tmpfiles.rules = [
       "d ${stateDir} 0755 ${userName} ${groupName} -"
-      "z ${stateDir} 0755 ${userName} ${groupName} -"  # Ensure permissions are set
-      "d ${stateDir}/queues 0777 ${userName} ${groupName} -"
-      "d ${stateDir}/queues/ollama 0777 ${userName} ${groupName} -"
-      "d ${stateDir}/queues/ollama/pending 0777 ${userName} ${groupName} -"
-      "d ${stateDir}/queues/ollama/processing 0777 ${userName} ${groupName} -"
-      "d ${stateDir}/queues/ollama/completed 0777 ${userName} ${groupName} -"
-      "d ${stateDir}/queues/ollama/failed 0777 ${userName} ${groupName} -"
+      "z ${stateDir} 0755 ${userName} ${groupName} -"
+      "d ${stateDir}/models 0755 ${userName} ${groupName} -"
       "d ${stateDir}/tool_cache 0777 ${userName} ${groupName} -"
     ];
     
     # Systemd services (dynamic names based on AI name)
     systemd.services."${mainServiceName}" = {
       description = "AI System Administrator (${cfg.aiName})";
-      after = [ "network.target" "ollama.service" ];
-      wants = [ "ollama.service" ];
+      after = [ "network.target" "llama-trigger.service" "llama-review.service" "llama-meta.service" ];
+      wants = [ "llama-trigger.service" "llama-review.service" "llama-meta.service" ];
       wantedBy = [ "multi-user.target" ];
       
       serviceConfig = {
@@ -394,7 +415,7 @@ in {
         NoNewPrivileges = false;  # Need privileges for sudo
         ProtectSystem = "strict";
         ProtectHome = true;
-        ReadWritePaths = [ stateDir "${stateDir}/tool_cache" "${stateDir}/queues" ];
+        ReadWritePaths = [ stateDir "${stateDir}/tool_cache" ];
         
         # Resource limits
         MemoryLimit = "1G";
@@ -865,7 +886,7 @@ print('='*60)
         def create_issue(description):
             """Create a new issue manually"""
             import socket
-            hostname = f"{socket.gethostname()}.coven.systems"
+            hostname = socket.gethostname()
             
             issue_id = tracker.create_issue(
                 hostname=hostname,

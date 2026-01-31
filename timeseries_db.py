@@ -462,7 +462,7 @@ if __name__ == "__main__":
     import socket
     
     db = TimeSeriesDB()
-    hostname = f"{socket.gethostname()}.coven.systems"
+    hostname = socket.gethostname()
     
     # Store some test metrics
     db.store_metrics(hostname, {

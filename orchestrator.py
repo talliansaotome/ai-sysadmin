@@ -56,33 +56,28 @@ class NewOrchestrator:
     ):
         """
         Initialize the orchestrator
-        
-        Args:
-            trigger_interval: Seconds between trigger checks
-            review_interval: Seconds between review runs
-            autonomy_level: observe/suggest/auto-safe/auto-full
-            state_dir: State directory
-            config_file: Configuration file path
-            context_size: Maximum context size in tokens
-            trigger_model: Small model for log classification
-            review_model: Model for continuous review
-            meta_model: Large model for complex analysis
-            trigger_backend_url: LLM backend for trigger model
-            review_backend_url: LLM backend for review model
-            meta_backend_url: LLM backend for meta model
-            use_trigger_model: Whether to use AI for trigger classification
         """
-        self.trigger_interval = trigger_interval
-        self.review_interval = review_interval
-        self.autonomy_level = autonomy_level
         self.state_dir = state_dir
         self.config_file = config_file
         self.running = False
         
+        # Set default values
+        self.trigger_interval = trigger_interval
+        self.review_interval = review_interval
+        self.autonomy_level = autonomy_level
+        self.context_size = context_size
+        self.trigger_model = trigger_model
+        self.review_model = review_model
+        self.meta_model = meta_model
+        self.trigger_backend_url = trigger_backend_url
+        self.review_backend_url = review_backend_url
+        self.meta_backend_url = meta_backend_url
+        self.use_trigger_model = use_trigger_model
+        
         # Set log file early
         self.log_file = self.state_dir / "orchestrator.log"
         
-        # Load config if exists
+        # Load config from file (overrides defaults)
         self._load_config()
         
         # Initialize databases
@@ -102,19 +97,19 @@ class NewOrchestrator:
         # Initialize Layer 2: Context Manager
         self._log("Initializing context manager...")
         self.context_manager = ContextManager(
-            context_size=context_size,
+            context_size=self.context_size,
             state_dir=state_dir
         )
         
         # Initialize Layer 1: Trigger Monitor
         self._log("Initializing trigger monitor...")
-        from llm_backend import OllamaBackend
-        trigger_backend = OllamaBackend(base_url="http://localhost:11434")
+        from llm_backend import LlamaCppBackend
+        trigger_backend = LlamaCppBackend(base_url=self.trigger_backend_url)
         
         self.trigger_monitor = TriggerMonitor(
             state_dir=state_dir,
-            small_model=trigger_model,
-            use_model=use_trigger_model,
+            small_model=self.trigger_model,
+            use_model=self.use_trigger_model,
             llm_backend=trigger_backend
         )
         
@@ -122,28 +117,27 @@ class NewOrchestrator:
         self._log("Initializing executor...")
         self.executor = SafeExecutor(
             state_dir=state_dir,
-            autonomy_level=autonomy_level
+            autonomy_level=self.autonomy_level
         )
         
         # Initialize Layer 3: Review Model
         self._log("Initializing review model...")
-        review_backend = OllamaBackend(base_url="http://localhost:11434")
+        review_backend = LlamaCppBackend(base_url=self.review_backend_url)
         
         self.review_model = ReviewModel(
-            model=review_model,
+            model=self.review_model,
             llm_backend=review_backend,
             context_manager=self.context_manager,
             executor=self.executor,
             state_dir=state_dir,
-            autonomy_level=autonomy_level
+            autonomy_level=self.autonomy_level
         )
         
         # Layer 4: Meta Model (initialized on-demand)
-        self.meta_backend = OllamaBackend(base_url="http://localhost:11434")
+        self.meta_backend = LlamaCppBackend(base_url=self.meta_backend_url)
         self.meta_model_config = {
-            'model': meta_model,
+            'model': self.meta_model,
             'llm_backend': self.meta_backend,
-            'backend_url': meta_backend_url,
             'state_dir': state_dir,
             'context_db': self.context_db
         }
@@ -176,6 +170,15 @@ class NewOrchestrator:
                     # Override with config file values if present
                     self.trigger_interval = config.get("trigger_interval", self.trigger_interval)
                     self.review_interval = config.get("review_interval", self.review_interval)
+                    self.autonomy_level = config.get("autonomy_level", self.autonomy_level)
+                    self.context_size = config.get("context_size", self.context_size)
+                    self.trigger_model = config.get("trigger_model", self.trigger_model)
+                    self.review_model = config.get("review_model", self.review_model)
+                    self.meta_model = config.get("meta_model", self.meta_model)
+                    self.trigger_backend_url = config.get("trigger_backend", self.trigger_backend_url)
+                    self.review_backend_url = config.get("review_backend", self.review_backend_url)
+                    self.meta_backend_url = config.get("meta_backend", self.meta_backend_url)
+                    self.use_trigger_model = config.get("use_trigger_model", self.use_trigger_model)
             except Exception as e:
                 self._log(f"Failed to load config: {e}")
     
@@ -404,7 +407,7 @@ Respond in JSON format."""
             import socket
             import psutil
             
-            hostname = f"{socket.gethostname()}.coven.systems"
+            hostname = socket.gethostname()
             
             metrics = {
                 'cpu_percent': psutil.cpu_percent(interval=0.1),
