@@ -4,6 +4,18 @@ An AI-powered autonomous system administrator for NixOS that monitors system hea
 
 The AI assistant's name is configurable and defaults to your system's hostname, making this software easily distributable and adaptable to any environment.
 
+## 🆕 New Four-Layer Architecture
+
+This project has been redesigned with a four-layer architecture for improved efficiency and scalability:
+
+- **Layer 1**: Trigger Monitor (continuous, lightweight detection)
+- **Layer 2**: Context Manager (token-based rolling window)
+- **Layer 3**: Review Model (periodic analysis with small model)
+- **Layer 4**: Meta Model (on-demand complex analysis)
+
+**📖 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation**  
+**🔄 Migrating? See [MIGRATION.md](MIGRATION.md) for upgrade guide**
+
 ## Features
 
 - **Autonomous Monitoring**: Continuous health checks with configurable intervals

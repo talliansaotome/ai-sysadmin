@@ -216,7 +216,7 @@ if __name__ == "__main__":
     # Test the parser
     import sys
     
-    repo_url = "git+https://git.coven.systems/lily/nixos-servers"
+    repo_url = "git+https://git.local/lily/nixos-servers"
     parser = ConfigParser(repo_url)
     
     print("Ensuring repository is up to date...")

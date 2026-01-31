@@ -15,7 +15,7 @@ from typing import List, Dict, Any, Optional
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from agent import MachaAgent
+from meta_model import MetaModel
 
 
 class MachaChatSession:
@@ -23,8 +23,8 @@ class MachaChatSession:
     
     def __init__(
         self,
-        ollama_host: str = "http://localhost:11434",
-        model: str = "gpt-oss:latest",
+        backend_url: str = "http://localhost:8082/v1",
+        model: str = "qwen3:14b",
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
         ai_name: str = None,
         enable_tools: bool = True
@@ -32,100 +32,26 @@ class MachaChatSession:
         """Initialize chat session with AI agent
         
         Args:
-            ollama_host: Ollama API endpoint
+            backend_url: LLM backend URL (llama.cpp)
             model: Model name to use
             state_dir: State directory for agent
             ai_name: Name of the AI assistant (defaults to hostname)
             enable_tools: Whether to enable tool calling (should always be True)
         """
-        self.agent = MachaAgent(
-            ollama_host=ollama_host,
+        self.agent = MetaModel(
+            backend_url=backend_url,
             model=model,
             state_dir=state_dir,
             ai_name=ai_name,
-            enable_tools=enable_tools,
-            use_queue=True,
-            priority="INTERACTIVE"
+            enable_tools=enable_tools
         )
         self.ai_name = self.agent.ai_name  # Store for UI usage
         self.conversation_history: List[Dict[str, str]] = []
         self.session_start = datetime.now().isoformat()
         
-    def _auto_diagnose_ollama(self) -> str:
-        """Automatically diagnose Ollama issues"""
-        diagnostics = []
-        
-        diagnostics.append("🔍 AUTO-DIAGNOSIS: Investigating Ollama failure...\n")
-        
-        # Check if Ollama service is running
-        try:
-            result = subprocess.run(
-                ['systemctl', 'is-active', 'ollama.service'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                diagnostics.append("✅ Ollama service is active")
-            else:
-                diagnostics.append(f"❌ Ollama service is NOT active: {result.stdout.strip()}")
-                # Get service status
-                status_result = subprocess.run(
-                    ['systemctl', 'status', 'ollama.service', '--no-pager', '-l'],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                diagnostics.append(f"\nService status:\n```\n{status_result.stdout[-500:]}\n```")
-        except Exception as e:
-            diagnostics.append(f"⚠️  Could not check service status: {e}")
-        
-        # Check memory usage
-        try:
-            result = subprocess.run(['free', '-h'], capture_output=True, text=True, timeout=5)
-            lines = result.stdout.split('\n')
-            for line in lines[:3]:  # First 3 lines
-                diagnostics.append(f"  {line}")
-        except Exception as e:
-            diagnostics.append(f"⚠️  Could not check memory: {e}")
-        
-        # Check which models are loaded
-        try:
-            import requests
-            response = requests.get(f"{self.agent.ollama_host}/api/tags", timeout=5)
-            if response.status_code == 200:
-                models = response.json().get('models', [])
-                diagnostics.append(f"\n📦 Loaded models ({len(models)}):")
-                for model in models:
-                    name = model.get('name', 'unknown')
-                    size = model.get('size', 0) / (1024**3)
-                    is_current = "← TARGET" if name == self.agent.model else ""
-                    diagnostics.append(f"  • {name} ({size:.1f} GB) {is_current}")
-                
-                # Check if target model is loaded
-                model_names = [m.get('name') for m in models]
-                if self.agent.model not in model_names:
-                    diagnostics.append(f"\n❌ TARGET MODEL NOT LOADED: {self.agent.model}")
-                    diagnostics.append(f"   Available models: {', '.join(model_names)}")
-            else:
-                diagnostics.append(f"❌ Ollama API returned {response.status_code}")
-        except Exception as e:
-            diagnostics.append(f"⚠️  Could not query Ollama API: {e}")
-        
-        # Check recent Ollama logs
-        try:
-            result = subprocess.run(
-                ['journalctl', '-u', 'ollama.service', '-n', '10', '--no-pager'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.stdout:
-                diagnostics.append(f"\n📋 Recent Ollama logs (last 10 lines):\n```\n{result.stdout}\n```")
-        except Exception as e:
-            diagnostics.append(f"⚠️  Could not check logs: {e}")
-        
-        return "\n".join(diagnostics)
+    def _auto_diagnose_llm(self) -> str:
+        """Automatically diagnose LLM issues"""
+        return self.agent._auto_diagnose_llm()
     
     def process_message(self, user_message: str, verbose: bool = False) -> str:
         """Process a user message and return Macha's response
@@ -174,29 +100,28 @@ class MachaChatSession:
         
         try:
             # Use tool-aware chat API - this handles all tool calling automatically
-            # Note: tool definitions are retrieved internally by _query_ollama_with_tools
-            ai_response = self.agent._query_ollama_with_tools(messages)
+            ai_response = self.agent._query_llm_with_tools(messages)
             
         except Exception as e:
             error_msg = (
-                f"❌ CRITICAL: Failed to communicate with Ollama inference engine\n\n"
+                f"❌ CRITICAL: Failed to communicate with LLM inference engine\n\n"
                 f"Error Type: {type(e).__name__}\n"
                 f"Error Message: {str(e)}\n\n"
             )
             # Auto-diagnose the issue
-            diagnostics = self._auto_diagnose_ollama()
+            diagnostics = self._auto_diagnose_llm()
             return error_msg + "\n" + diagnostics
         
         if not ai_response:
             error_msg = (
-                f"❌ Empty response from Ollama inference engine\n\n"
+                f"❌ Empty response from LLM inference engine\n\n"
                 f"The request succeeded but returned no data. This usually means:\n"
                 f"  • The model ({self.agent.model}) is still loading\n"
-                f"  • Ollama ran out of memory during generation\n"
+                f"  • The backend ran out of memory during generation\n"
                 f"  • The prompt was too large for the context window\n\n"
             )
             # Auto-diagnose the issue
-            diagnostics = self._auto_diagnose_ollama()
+            diagnostics = self._auto_diagnose_llm()
             return error_msg + "\n" + diagnostics
         
         # Add response to history
@@ -255,9 +180,12 @@ class MachaChatSession:
                     print(f"{self.ai_name.upper()} ARCHITECTURE & STATUS")
                     print("=" * 70)
                     
+                    import socket
+                    hostname = socket.gethostname()
+                    
                     print("\n🏗️  SYSTEM ARCHITECTURE:")
-                    print(f"  Hostname: macha.coven.systems")
-                    print(f"  Service: macha-autonomous.service (systemd)")
+                    print(f"  Hostname: {hostname}")
+                    print(f"  Service: {self.ai_name}-ai.service (systemd)")
                     print(f"  Working Directory: /var/lib/ai-sysadmin")
                     
                     print("\n👤 EXECUTION CONTEXT:")
@@ -279,36 +207,24 @@ class MachaChatSession:
                     print(f"  Note: Chat runs as invoking user (you), using macha's tools")
                     
                     print("\n🧠 INFERENCE ENGINE:")
-                    print(f"  Backend: Ollama")
-                    print(f"  Host: {self.agent.ollama_host}")
+                    print(f"  Backend: llama.cpp")
+                    print(f"  Host: {self.agent.llm_backend.base_url}")
                     print(f"  Model: {self.agent.model}")
-                    print(f"  Service: ollama.service (systemd)")
-                    print(f"  Queue Worker: ollama-queue-worker.service")
+                    print(f"  Service: llama-meta.service (systemd)")
                     
                     print("\n💾 DATABASE:")
                     print(f"  Backend: ChromaDB")
                     print(f"  State: {self.agent.state_dir}")
                     
-                    print("\n🔍 OLLAMA STATUS:")
-                    # Try to query Ollama status
+                    print("\n🔍 LLM STATUS:")
+                    # Try to query LLM status
                     try:
-                        import requests
-                        # Check if Ollama is running
-                        response = requests.get(f"{self.agent.ollama_host}/api/tags", timeout=5)
-                        if response.status_code == 200:
-                            models = response.json().get('models', [])
+                        if self.agent.llm_backend.is_available():
                             print(f"  Status: ✓ Running")
-                            print(f"  Loaded models: {len(models)}")
-                            for model in models:
-                                name = model.get('name', 'unknown')
-                                size = model.get('size', 0) / (1024**3)  # GB
-                                is_current = "← ACTIVE" if name == self.agent.model else ""
-                                print(f"    • {name} ({size:.1f} GB) {is_current}")
                         else:
-                            print(f"  Status: ❌ Error (HTTP {response.status_code})")
+                            print(f"  Status: ❌ Not responding")
                     except Exception as e:
-                        print(f"  Status: ❌ Cannot connect: {e}")
-                        print(f"  Hint: Check 'systemctl status ollama.service'")
+                        print(f"  Status: ❌ Error: {e}")
                     
                     print("\n🛠️  TOOLS:")
                     print(f"  Enabled: {self.agent.enable_tools}")
@@ -400,7 +316,7 @@ Please provide a clear, concise explanation of:
 Be conversational and helpful. Use plain language, not technical jargon unless necessary."""
 
         try:
-            response = self.agent._query_ollama(prompt, temperature=0.7)
+            response = self.agent._query_llm(prompt, temperature=0.7)
             return response
         except Exception as e:
             return f"Error generating explanation: {e}"
@@ -446,7 +362,7 @@ USER'S QUESTION:
 Please answer the user's question clearly and honestly. If you're uncertain about something, say so. Focus on helping them make an informed decision about whether to approve this action."""
 
         try:
-            response = self.agent._query_ollama(prompt, temperature=0.7)
+            response = self.agent._query_llm(prompt, temperature=0.7)
             return response
         except Exception as e:
             return f"Error: {e}"
