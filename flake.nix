@@ -1,9 +1,9 @@
 {
   description = "Macha - AI-Powered Autonomous System Administrator";
 
-  # inputs = {
-  #   nixpkgs.follows = "nixpkgs";
-  # };
+  inputs = {
+    nixpkgs.follows = "nixpkgs";
+  };
 
   outputs = { self, nixpkgs }: {
     # NixOS module

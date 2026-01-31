@@ -203,6 +203,24 @@ in {
       description = "Whether to use AI model for log classification (disable for lower resource usage)";
     };
 
+    memoryLimit = mkOption {
+      type = types.str;
+      default = "1G";
+      description = "Memory limit for the AI sysadmin service (systemd format)";
+    };
+
+    cpuQuota = mkOption {
+      type = types.str;
+      default = "50%";
+      description = "CPU quota for the AI sysadmin service (systemd format)";
+    };
+
+    threads = mkOption {
+      type = types.int;
+      default = 4;
+      description = "Number of threads to use for AI inference";
+    };
+
     # === TIMESCALEDB OPTIONS ===
 
     timescaledb = {
@@ -319,7 +337,7 @@ in {
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
-        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.triggerModel}.gguf --port 8080 --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers 99";
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.triggerModel}.gguf --port 8080 --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers 99 --threads ${toString cfg.threads}";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
@@ -331,7 +349,7 @@ in {
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
-        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.reviewModel}.gguf --port 8081 --host 127.0.0.1 --ctx-size 32768 --n-gpu-layers 99";
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.reviewModel}.gguf --port 8081 --host 127.0.0.1 --ctx-size 32768 --n-gpu-layers 99 --threads ${toString cfg.threads}";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
@@ -343,7 +361,7 @@ in {
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
-        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.metaModel}.gguf --port 8082 --host 127.0.0.1 --ctx-size ${toString cfg.contextSize} --n-gpu-layers 99";
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.metaModel}.gguf --port 8082 --host 127.0.0.1 --ctx-size ${toString cfg.contextSize} --n-gpu-layers 99 --threads ${toString cfg.threads}";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
@@ -418,8 +436,8 @@ in {
         ReadWritePaths = [ stateDir "${stateDir}/tool_cache" ];
         
         # Resource limits
-        MemoryLimit = "1G";
-        CPUQuota = "50%";
+        MemoryLimit = cfg.memoryLimit;
+        CPUQuota = cfg.cpuQuota;
       };
       
       environment = {
