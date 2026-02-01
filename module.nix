@@ -673,16 +673,18 @@ in {
         #!${pkgs.bash}/bin/bash
         
         # Disable ChromaDB .env searching globally for the CLI
-        export CHROMA_ENV_FILE=""
+        export CHROMA_ENV_FILE="/dev/null"
         export ANONYMIZED_TELEMETRY="False"
         
         # Helper to run python scripts as the AI user
         run_ai_tool() {
           local script=$1
           shift
+          # Change to state directory to avoid permission issues with .env discovery in CWD
+          cd ${stateDir}
           sudo -u ${userName} ${pkgs.coreutils}/bin/env \
             PYTHONPATH=${toString ./.} \
-            CHROMA_ENV_FILE="" \
+            CHROMA_ENV_FILE="/dev/null" \
             ANONYMIZED_TELEMETRY="False" \
             ${pythonEnv}/bin/python3 ${./.}/$script "$@"
         }
