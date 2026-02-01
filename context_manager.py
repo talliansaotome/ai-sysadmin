@@ -6,7 +6,7 @@ Integrates ChromaDB for semantic search and TimescaleDB for metrics
 
 import json
 import tiktoken
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from collections import deque
@@ -100,7 +100,7 @@ class ContextManager:
         """
         # Create context entry
         entry = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'source': source,
             'event': event,
             'compressed': False
@@ -206,7 +206,7 @@ class ContextManager:
         """Get system information header"""
         import socket
         hostname = socket.gethostname()
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         
         return f"""=== AI System Administrator Context ===
 Hostname: {hostname}
@@ -231,7 +231,7 @@ Active Entries: {len(self.context_entries)}
             for metric_name, data in latest.items():
                 value = data.get('value', 0)
                 unit = data.get('unit', '')
-                time_ago = datetime.utcnow() - data['time']
+                time_ago = datetime.now(timezone.utc) - data['time']
                 lines.append(f"  {metric_name}: {value:.1f}{unit} ({time_ago.seconds}s ago)")
             
             return "\n".join(lines)
@@ -274,7 +274,7 @@ Active Entries: {len(self.context_entries)}
             
             # Don't compress very recent entries (last 10 minutes)
             entry_time = datetime.fromisoformat(entry['timestamp'])
-            if (datetime.utcnow() - entry_time).total_seconds() < 600:
+            if (datetime.now(timezone.utc) - entry_time).total_seconds() < 600:
                 continue
             
             entries_to_compress.append(entry)
@@ -408,7 +408,7 @@ Active Entries: {len(self.context_entries)}
                 'entries': list(self.context_entries),
                 'token_count': self.current_token_count,
                 'stats': self.compression_stats,
-                'saved_at': datetime.utcnow().isoformat()
+                'saved_at': datetime.now(timezone.utc).isoformat()
             }
             
             with open(context_file, 'w') as f:

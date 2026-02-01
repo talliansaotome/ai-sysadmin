@@ -14,7 +14,7 @@ import json
 import subprocess
 from typing import Dict, List, Any, Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from tools import SysadminTools
 
@@ -512,7 +512,7 @@ RESPOND WITH ONLY THE JSON, NO OTHER TEXT.
         chunk_size = 8000  # ~2000 tokens per chunk, safe size
         
         # Store full output in cache for potential deep dive
-        cache_id = f"{tool_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        cache_id = f"{tool_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         try:
             cache_file = self.cache_dir / f"{cache_id}.txt"
             cache_file.write_text(raw_output)
@@ -815,7 +815,7 @@ Provide unified summary (max 800 chars) covering all key points."""
     def _log_decision(self, monitoring_data: Dict[str, Any], analysis: Dict[str, Any]):
         """Log AI decisions for auditing"""
         log_entry = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "monitoring_summary": {
                 "cpu": monitoring_data.get("resources", {}).get("cpu_percent"),
                 "memory": monitoring_data.get("resources", {}).get("memory_percent"),

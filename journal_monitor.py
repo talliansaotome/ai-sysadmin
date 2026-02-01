@@ -6,7 +6,7 @@ Journal Monitor - Monitor remote systems via centralized journald
 import json
 import subprocess
 from typing import Dict, List, Any, Optional, Set
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from collections import defaultdict
 
@@ -226,7 +226,7 @@ class JournalMonitor:
         
         return {
             "internet_reachable": internet_reachable,
-            "last_seen": datetime.now().isoformat() if internet_reachable else None
+            "last_seen": datetime.now(timezone.utc).isoformat() if internet_reachable else None
         }
     
     def collect_all(self, hostname: str) -> Dict[str, Any]:

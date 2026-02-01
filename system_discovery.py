@@ -7,7 +7,7 @@ import subprocess
 import json
 import re
 from typing import Dict, List, Set, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from command_patterns import build_ssh_command
 
@@ -124,7 +124,7 @@ class SystemDiscovery:
             'services': [],
             'capabilities': [],
             'hardware': {},
-            'discovered_at': datetime.now().isoformat()
+            'discovered_at': datetime.now(timezone.utc).isoformat()
         }
         
         try:

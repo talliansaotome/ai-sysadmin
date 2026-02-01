@@ -5,7 +5,7 @@ SAR Integration - Parse and store system activity reports
 
 import subprocess
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional
 
 
@@ -34,7 +34,7 @@ class SarIntegration:
         try:
             # sar -u: CPU utilization
             # -s: start time (hours ago)
-            start_time = datetime.now() - timedelta(hours=hours)
+            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             start_str = start_time.strftime("%H:%M:%S")
             
             result = subprocess.run(
@@ -57,7 +57,7 @@ class SarIntegration:
     def get_memory_usage(self, hours: int = 1) -> List[Dict[str, Any]]:
         """Get memory usage statistics from sar"""
         try:
-            start_time = datetime.now() - timedelta(hours=hours)
+            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             start_str = start_time.strftime("%H:%M:%S")
             
             result = subprocess.run(
@@ -81,7 +81,7 @@ class SarIntegration:
     def get_disk_io(self, hours: int = 1) -> List[Dict[str, Any]]:
         """Get disk I/O statistics from sar"""
         try:
-            start_time = datetime.now() - timedelta(hours=hours)
+            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             start_str = start_time.strftime("%H:%M:%S")
             
             result = subprocess.run(
@@ -104,7 +104,7 @@ class SarIntegration:
     def get_network_stats(self, hours: int = 1) -> List[Dict[str, Any]]:
         """Get network statistics from sar"""
         try:
-            start_time = datetime.now() - timedelta(hours=hours)
+            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             start_str = start_time.strftime("%H:%M:%S")
             
             result = subprocess.run(
@@ -126,7 +126,7 @@ class SarIntegration:
     def get_load_average(self, hours: int = 1) -> List[Dict[str, Any]]:
         """Get load average from sar"""
         try:
-            start_time = datetime.now() - timedelta(hours=hours)
+            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
             start_str = start_time.strftime("%H:%M:%S")
             
             result = subprocess.run(
@@ -189,7 +189,7 @@ class SarIntegration:
                 if len(time_parts) == 3:
                     hour, minute, second = map(int, time_parts)
                     # Create timestamp for today at this time
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
                     timestamp = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
                     
                     # If timestamp is in the future, it's from yesterday
@@ -256,7 +256,7 @@ class SarIntegration:
                 time_parts = time_str.split(':')
                 if len(time_parts) == 3:
                     hour, minute, second = map(int, time_parts)
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
                     timestamp = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
                     
                     if timestamp > now:

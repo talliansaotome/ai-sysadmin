@@ -5,7 +5,7 @@ Analyzes context holistically and escalates to meta model when needed
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
@@ -80,7 +80,7 @@ class ReviewModel:
             return {
                 'status': 'error',
                 'message': 'Context manager not available',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
         
         context_text = self.context_manager.get_context_window(
@@ -98,13 +98,13 @@ class ReviewModel:
             return {
                 'status': 'error',
                 'message': 'Failed to get analysis from model',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
         
         # Parse analysis
         review_result = self._parse_analysis(analysis)
         review_result['triggered_by'] = triggered_by
-        review_result['timestamp'] = datetime.utcnow().isoformat()
+        review_result['timestamp'] = datetime.now(timezone.utc).isoformat()
         
         # Add to context
         self.context_manager.add_event({
@@ -310,7 +310,7 @@ Respond in JSON format with this structure:
         try:
             state = {
                 'stats': self.stats,
-                'last_save': datetime.utcnow().isoformat()
+                'last_save': datetime.now(timezone.utc).isoformat()
             }
             
             with open(self.state_file, 'w') as f:

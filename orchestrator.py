@@ -18,7 +18,7 @@ import time
 import signal
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from trigger_monitor import TriggerMonitor
@@ -194,7 +194,7 @@ class NewOrchestrator:
     
     def _log(self, message: str):
         """Log a message"""
-        timestamp = datetime.now().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         log_line = f"[{timestamp}] {message}"
         print(log_line)
         
@@ -216,7 +216,7 @@ class NewOrchestrator:
         
         cycle_result = {
             'cycle': self.cycle_count,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'layer1_triggered': False,
             'layer3_ran': False,
             'layer4_escalated': False

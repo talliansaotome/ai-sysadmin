@@ -8,7 +8,7 @@ import pwd
 import psycopg2
 from psycopg2.extras import execute_values
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 
@@ -157,7 +157,7 @@ class TimeSeriesDB:
     def store_metrics(self, hostname: str, metrics: Dict[str, Any], timestamp: datetime = None):
         """Store system metrics"""
         if timestamp is None:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
         
         records = []
         for metric_name, metric_data in metrics.items():
@@ -197,7 +197,7 @@ class TimeSeriesDB:
     def store_service_status(self, hostname: str, services: List[Dict[str, Any]], timestamp: datetime = None):
         """Store service status information"""
         if timestamp is None:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
         
         records = [
             (
@@ -230,7 +230,7 @@ class TimeSeriesDB:
                        timestamp: datetime = None):
         """Store a log event"""
         if timestamp is None:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
         
         with self._get_connection() as conn:
             with conn.cursor() as cur:
@@ -250,7 +250,7 @@ class TimeSeriesDB:
                            timestamp: datetime = None):
         """Store a trigger event"""
         if timestamp is None:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
         
         with self._get_connection() as conn:
             with conn.cursor() as cur:
@@ -270,9 +270,9 @@ class TimeSeriesDB:
                      interval: str = "5 minutes") -> List[Dict[str, Any]]:
         """Query metrics with optional time bucketing"""
         if start_time is None:
-            start_time = datetime.utcnow() - timedelta(hours=1)
+            start_time = datetime.now(timezone.utc) - timedelta(hours=1)
         if end_time is None:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
         
         where_clauses = ["hostname = %s", "time >= %s", "time <= %s"]
         params = [hostname, start_time, end_time]
@@ -345,7 +345,7 @@ class TimeSeriesDB:
     def query_service_history(self, hostname: str, service_name: str,
                              hours: int = 24) -> List[Dict[str, Any]]:
         """Get service status history"""
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         with self._get_connection() as conn:
             with conn.cursor() as cur:
@@ -371,7 +371,7 @@ class TimeSeriesDB:
     def query_log_events(self, hostname: str, severity: str = None,
                         hours: int = 1) -> List[Dict[str, Any]]:
         """Query log events"""
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         where_clauses = ["hostname = %s", "time >= %s"]
         params = [hostname, start_time]
@@ -405,7 +405,7 @@ class TimeSeriesDB:
     def get_metric_statistics(self, hostname: str, metric_name: str,
                              hours: int = 24) -> Dict[str, Any]:
         """Get statistical summary of a metric"""
-        start_time = datetime.utcnow() - timedelta(hours=hours)
+        start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         with self._get_connection() as conn:
             with conn.cursor() as cur:
@@ -436,7 +436,7 @@ class TimeSeriesDB:
     
     def cleanup_old_data(self, retention_days: int = 30):
         """Remove data older than retention period"""
-        cutoff_time = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(days=retention_days)
         
         with self._get_connection() as conn:
             with conn.cursor() as cur:

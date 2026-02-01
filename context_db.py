@@ -34,8 +34,7 @@ class ContextDatabase:
             port=port,
             settings=Settings(
                 anonymized_telemetry=False,
-                allow_reset=False,
-                chroma_telemetry_enabled=False
+                allow_reset=False
             )
         )
         

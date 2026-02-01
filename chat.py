@@ -8,7 +8,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -47,7 +47,7 @@ class MachaChatSession:
         )
         self.ai_name = self.agent.ai_name  # Store for UI usage
         self.conversation_history: List[Dict[str, str]] = []
-        self.session_start = datetime.now().isoformat()
+        self.session_start = datetime.now(timezone.utc).isoformat()
         
     def _auto_diagnose_llm(self) -> str:
         """Automatically diagnose LLM issues"""
@@ -68,7 +68,7 @@ class MachaChatSession:
         self.conversation_history.append({
             'role': 'user',
             'message': user_message,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
         
         # Build chat messages for tool-calling API
@@ -128,7 +128,7 @@ class MachaChatSession:
         self.conversation_history.append({
             'role': 'assistant',
             'message': ai_response,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
         
         return ai_response

@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import asyncio
 import psutil
@@ -110,7 +110,7 @@ async def get_status() -> Dict[str, Any]:
     
     return {
         "hostname": hostname,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "status": status,
         "health_score": health_score,
         "metrics": {
@@ -135,7 +135,7 @@ async def get_summary() -> Dict[str, Any]:
     if not context_manager:
         return {
             "summary": "Context manager not available",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     
     # Get recent context
@@ -169,12 +169,12 @@ async def get_summary() -> Dict[str, Any]:
                 "tokens": context_manager.current_token_count,
                 "utilization": f"{(context_manager.current_token_count / context_manager.context_size * 100):.1f}%"
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         return {
             "summary": f"Error generating summary: {e}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 MCP Server - Model Context Protocol server for AI Sysadmin
 
@@ -7,9 +6,10 @@ with the system administration capabilities.
 """
 
 import json
+import os
 import socket
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # MCP imports (will need to be installed)
@@ -38,7 +38,9 @@ class AISysadminMCPServer:
     def __init__(
         self,
         autonomy_level: str = "suggest",
-        state_dir: Path = Path("/var/lib/ai-sysadmin")
+        state_dir: Path = Path("/var/lib/ai-sysadmin"),
+        host: str = "0.0.0.0",
+        port: int = 40085
     ):
         """
         Initialize MCP server
@@ -46,12 +48,16 @@ class AISysadminMCPServer:
         Args:
             autonomy_level: Autonomy level (observe, suggest, auto-safe, auto-full)
             state_dir: State directory
+            host: Host to bind to
+            port: Port to listen on
         """
         if not MCP_AVAILABLE:
             raise RuntimeError("MCP library not available")
         
         self.autonomy_level = autonomy_level
         self.state_dir = state_dir
+        self.host = host
+        self.port = port
         
         # Initialize components
         self.context_manager = None
@@ -68,7 +74,7 @@ class AISysadminMCPServer:
             print(f"Warning: Could not initialize all components: {e}")
         
         # Create MCP server
-        self.server = Server("ai-sysadmin")
+        self.server = Server("ai-sysadmin", host=self.host, port=self.port)
         
         # Register resources (context providers)
         self._register_resources()
@@ -251,7 +257,7 @@ class AISysadminMCPServer:
         
         status = {
             "hostname": hostname,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metrics": {
                 "cpu_percent": psutil.cpu_percent(interval=0.5),
                 "memory_percent": psutil.virtual_memory().percent,
@@ -395,11 +401,27 @@ async def main():
         default="suggest",
         help="Autonomy level"
     )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Host to bind to"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=40085,
+        help="Port to listen on (default 40085)"
+    )
     
     args = parser.parse_args()
     
     try:
-        server = AISysadminMCPServer(autonomy_level=args.autonomy)
+        server = AISysadminMCPServer(
+            autonomy_level=args.autonomy,
+            host=args.host,
+            port=args.port
+        )
         await server.run()
     except RuntimeError as e:
         print(f"Error: {e}", file=sys.stderr)

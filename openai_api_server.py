@@ -17,7 +17,7 @@ import asyncio
 import json
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Import AI Sysadmin components
@@ -143,7 +143,7 @@ class OpenAIAPIServer:
             """Health check endpoint"""
             return {
                 "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "autonomy_level": self.autonomy_level,
                 "meta_model_available": self.meta_model is not None
             }
@@ -157,7 +157,7 @@ class OpenAIAPIServer:
             return {
                 "context": self.context_manager.get_current_context(),
                 "autonomy_level": self.autonomy_level,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
     async def _handle_chat_request(

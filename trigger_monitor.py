@@ -8,7 +8,7 @@ import json
 import subprocess
 import time
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Callable
 from pathlib import Path
 import psutil
@@ -138,7 +138,7 @@ class TriggerMonitor:
                         'value': cpu_percent,
                         'threshold': self.thresholds['cpu_percent'],
                         'message': f"CPU usage {cpu_percent:.1f}% exceeds threshold {self.thresholds['cpu_percent']:.1f}%",
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
             
             # Memory usage
@@ -152,7 +152,7 @@ class TriggerMonitor:
                         'value': memory.percent,
                         'threshold': self.thresholds['memory_percent'],
                         'message': f"Memory usage {memory.percent:.1f}% exceeds threshold {self.thresholds['memory_percent']:.1f}%",
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
             
             # Disk usage
@@ -166,7 +166,7 @@ class TriggerMonitor:
                         'value': disk.percent,
                         'threshold': self.thresholds['disk_percent'],
                         'message': f"Disk usage {disk.percent:.1f}% exceeds threshold {self.thresholds['disk_percent']:.1f}%",
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
             
             # Load average
@@ -183,7 +183,7 @@ class TriggerMonitor:
                         'value': load_per_cpu,
                         'threshold': self.thresholds['load_per_cpu'],
                         'message': f"Load average per CPU {load_per_cpu:.2f} exceeds threshold {self.thresholds['load_per_cpu']:.2f}",
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
         
         except Exception as e:
@@ -227,7 +227,7 @@ class TriggerMonitor:
                             'service': service,
                             'status': status,
                             'message': f"Critical service {service} is {status}",
-                            'timestamp': datetime.utcnow().isoformat()
+                            'timestamp': datetime.now(timezone.utc).isoformat()
                         })
         
         except Exception as e:
@@ -294,7 +294,7 @@ class TriggerMonitor:
                                 'description': description,
                                 'message': message[:200],  # Truncate
                                 'unit': entry.get('SYSLOG_IDENTIFIER', ''),
-                                'timestamp': datetime.utcnow().isoformat()
+                                'timestamp': datetime.now(timezone.utc).isoformat()
                             }
                             
                             # Use small model to classify if enabled
@@ -316,7 +316,7 @@ class TriggerMonitor:
                         'error_count': error_count,
                         'threshold': self.thresholds['error_log_rate'],
                         'message': f"High error rate: {error_count} errors in recent logs",
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     })
         
         except Exception as e:
@@ -387,7 +387,7 @@ Respond in JSON format."""
         Returns:
             True if trigger should fire
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         if trigger_key not in self.last_trigger_times:
             self.last_trigger_times[trigger_key] = now

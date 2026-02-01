@@ -8,7 +8,7 @@ import subprocess
 import shutil
 from typing import Dict, List, Any, Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 
 
@@ -109,7 +109,7 @@ class SafeExecutor:
         action_type = action.get("action_type")
         result = {
             "executed": True,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": action,
             "success": False,
             "output": "",
@@ -383,7 +383,7 @@ class SafeExecutor:
                 return
         
         queue.append({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": action,
             "context": context,
             "approved": None
@@ -460,7 +460,7 @@ class SafeExecutor:
         archive_file = self.state_dir / "approved_actions.jsonl"
         
         archive_entry = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "original_timestamp": action_item.get("timestamp"),
             "action": action_item.get("action"),
             "context": action_item.get("context"),
