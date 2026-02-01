@@ -6,7 +6,7 @@ Context Database - Store and retrieve system context using ChromaDB for RAG
 import json
 import os
 from typing import Dict, List, Any, Optional, Set
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Set environment variable BEFORE importing chromadb to prevent .env file reading and disable telemetry
@@ -34,7 +34,8 @@ class ContextDatabase:
             port=port,
             settings=Settings(
                 anonymized_telemetry=False,
-                allow_reset=False
+                allow_reset=False,
+                chroma_telemetry_enabled=False
             )
         )
         
@@ -118,7 +119,7 @@ class ContextDatabase:
             "metadata": json.dumps(metadata or {}),
             "config_repo": config_repo or "",
             "config_branch": config_branch or "",
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
         
         self.systems_collection.upsert(
@@ -202,7 +203,7 @@ class ContextDatabase:
                 "target": target,
                 "type": relationship_type,
                 "description": description,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }]
         )
     
@@ -249,7 +250,7 @@ class ContextDatabase:
         metadata: Dict[str, Any] = None
     ) -> str:
         """Store an issue and its resolution"""
-        issue_id = f"{system}_{datetime.now().timestamp()}"
+        issue_id = f"{system}_{datetime.now(timezone.utc).timestamp()}"
         
         doc = f"""
 System: {system}
@@ -265,7 +266,7 @@ Severity: {severity}
                 "system": system,
                 "severity": severity,
                 "resolved": bool(resolution),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "metadata": json.dumps(metadata or {})
             }]
         )
@@ -282,9 +283,9 @@ Severity: {severity}
     ) -> str:
         """Store investigation results for an issue"""
         if timestamp is None:
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
         
-        investigation_id = f"investigation_{system}_{datetime.now().timestamp()}"
+        investigation_id = f"investigation_{system}_{datetime.now(timezone.utc).timestamp()}"
         
         doc = f"""
 System: {system}
@@ -327,7 +328,7 @@ Output:
             
             investigations = []
             if result['ids'] and result['ids'][0]:
-                cutoff_time = datetime.now().timestamp() - (hours * 3600)
+                cutoff_time = datetime.now(timezone.utc).timestamp() - (hours * 3600)
                 
                 for i, doc_id in enumerate(result['ids'][0]):
                     meta = result['metadatas'][0][i]
@@ -386,7 +387,7 @@ Output:
         outcome: Dict[str, Any] = None
     ):
         """Store an AI decision for learning"""
-        decision_id = f"decision_{datetime.now().timestamp()}"
+        decision_id = f"decision_{datetime.now(timezone.utc).timestamp()}"
         
         doc = f"""
 System: {system}
@@ -402,7 +403,7 @@ Outcome: {outcome.get('status', 'pending') if outcome else 'pending'}
             documents=[doc],
             metadatas=[{
                 "system": system,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "analysis": json.dumps(analysis),
                 "action": json.dumps(action),
                 "outcome": json.dumps(outcome or {})
@@ -525,7 +526,7 @@ Outcome: {outcome.get('status', 'pending') if outcome else 'pending'}
                 "path": file_path,
                 "category": category,
                 "systems": json.dumps(systems_using or []),
-                "updated_at": datetime.now().isoformat()
+                "updated_at": datetime.now(timezone.utc).isoformat()
             }]
         )
     
@@ -617,7 +618,7 @@ Outcome: {outcome.get('status', 'pending') if outcome else 'pending'}
             # metadata is already a dict from get_system(), no need to json.loads()
             metadata = system_info.get('metadata', {})
             metadata['config_files'] = config_files
-            metadata['config_updated_at'] = datetime.now().isoformat()
+            metadata['config_updated_at'] = datetime.now(timezone.utc).isoformat()
             
             # Re-register with updated metadata
             self.register_system(
@@ -756,8 +757,8 @@ Outcome: {outcome.get('status', 'pending') if outcome else 'pending'}
             "source": source,
             "confidence": confidence,
             "tags": tags or [],
-            "created_at": datetime.utcnow().isoformat(),
-            "last_verified": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "last_verified": datetime.now(timezone.utc).isoformat(),
             "times_referenced": 0
         }
         
@@ -874,7 +875,7 @@ Outcome: {outcome.get('status', 'pending') if outcome else 'pending'}
             if confidence:
                 full_doc['confidence'] = confidence
             if verify:
-                full_doc['last_verified'] = datetime.utcnow().isoformat()
+                full_doc['last_verified'] = datetime.now(timezone.utc).isoformat()
             
             # Update in collection
             self.knowledge_collection.update(

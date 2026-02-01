@@ -54,9 +54,9 @@ class NewOrchestrator:
         trigger_model: str = "qwen3:1b",
         review_model: str = "qwen3:4b",
         meta_model: str = "qwen3:14b",
-        trigger_backend_url: str = "http://127.0.0.1:8080/v1",
-        review_backend_url: str = "http://127.0.0.1:8081/v1",
-        meta_backend_url: str = "http://127.0.0.1:8082/v1",
+        trigger_backend_url: str = "http://127.0.0.1:40080/v1",
+        review_backend_url: str = "http://127.0.0.1:40081/v1",
+        meta_backend_url: str = "http://127.0.0.1:40082/v1",
         use_trigger_model: bool = True
     ):
         """

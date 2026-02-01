@@ -52,7 +52,7 @@ class MetaModel:
     def __init__(
         self,
         llm_backend = None,
-        backend_url: str = "http://127.0.0.1:8082/v1",
+        backend_url: str = "http://127.0.0.1:40082/v1",
         model: str = "qwen3:14b",
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
         context_db = None,

@@ -12,12 +12,12 @@
 - ✅ Updated `orchestrator_new.py` with separate backend URLs
 
 ### Key Features
-- OpenAI-compatible API on port 8083 for external frontends (OpenWebUI, LibreChat, etc.)
+- OpenAI-compatible API on port 40083 for external frontends (OpenWebUI, LibreChat, etc.)
 - Separate llama.cpp instances for each model layer (internal only, 127.0.0.1):
-  - 127.0.0.1:8080: Trigger model (qwen3:1b)
-  - 127.0.0.1:8081: Review model (qwen3:4b)
-  - 127.0.0.1:8082: Meta model (qwen3:14b)
-- OpenAI API Server (configurable, can be 0.0.0.0:8083 for external access)
+  - 127.0.0.1:40080: Trigger model (qwen3:1b)
+  - 127.0.0.1:40081: Review model (qwen3:4b)
+  - 127.0.0.1:40082: Meta model (qwen3:14b)
+- OpenAI API Server (configurable, can be 0.0.0.0:40083 for external access)
 
 ## Remaining Work 🔧
 
@@ -31,9 +31,9 @@ Replace Ollama service configuration with llama.cpp:
    - `llama-cpp.models` - list of model configurations
    - `llama-cpp.acceleration` (rocm/cuda/cpu)
 3. Replace `ollama.service` with `llama-server` instances (internal only):
-   - `llama-trigger.service` (127.0.0.1:8080, small model)
-   - `llama-review.service` (127.0.0.1:8081, medium model)
-   - `llama-meta.service` (127.0.0.1:8082, large model)
+   - `llama-trigger.service` (127.0.0.1:40080, small model)
+   - `llama-review.service` (127.0.0.1:40081, medium model)
+   - `llama-meta.service` (127.0.0.1:40082, large model)
 4. Add `ai-sysadmin-api.service` for OpenAI API server (configurable host:port)
 5. Update python dependencies (add `openai` package)
 
@@ -66,22 +66,22 @@ Replace Ollama service configuration with llama.cpp:
 ```
 External Frontend (e.g., OpenWebUI)
          ↓
-  OpenAI API Server (0.0.0.0:8083) ← ONLY externally accessible service
+  OpenAI API Server (0.0.0.0:40083) ← ONLY externally accessible service
          ↓
     Meta Model (Layer 4)
          ↓
-  llama.cpp (127.0.0.1:8082) ← Internal only
+  llama.cpp (127.0.0.1:40082) ← Internal only
          ↓
   [System Administration Capabilities]
 ```
 
 **Security Model:**
 - **Internal Services (127.0.0.1)**: All llama.cpp model servers listen only on localhost
-  - Trigger model: 127.0.0.1:8080
-  - Review model: 127.0.0.1:8081
-  - Meta model: 127.0.0.1:8082
+  - Trigger model: 127.0.0.1:40080
+  - Review model: 127.0.0.1:40081
+  - Meta model: 127.0.0.1:40082
 - **External Service**: Only the OpenAI API server is exposed (host configurable)
-  - Default: 0.0.0.0:8083 or configure specific interface
+  - Default: 0.0.0.0:40083 or configure specific interface
 
 The key insight: External frontends connect to our OpenAI API server, NOT directly 
 to llama.cpp. This gives them access to the full AI sysadmin capabilities, not just
@@ -108,7 +108,7 @@ For existing deployments:
 2. Update `module.nix` configuration
 3. Rebuild NixOS system
 4. llama.cpp will replace Ollama
-5. Point OpenWebUI/other frontends to port 8083
+5. Point OpenWebUI/other frontends to port 40083
 
 No data loss - ChromaDB and TimescaleDB remain unchanged.
 

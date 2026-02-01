@@ -12,7 +12,7 @@
 
 #### 2. Security Hardening (COMPLETE)
 - ✅ Internal llama.cpp servers bind to 127.0.0.1 only
-- ✅ Only OpenAI API (port 8083) exposed for frontends
+- ✅ Only OpenAI API (port 40083) exposed for frontends
 - ✅ Three-tier model architecture with proper isolation
 
 #### 3. Architecture Improvements (COMPLETE)
@@ -44,11 +44,11 @@ Once module.nix is complete:
 - [ ] Verify all services start
 - [ ] Test trigger → review → meta flow
 - [ ] Test OpenAI API endpoint
-- [ ] Connect OpenWebUI to port 8083
+- [ ] Connect OpenWebUI to port 40083
 - [ ] Verify autonomy levels work
 
 ## Critical User Note
-**The external frontend (OpenWebUI, etc.) connects to port 8083 (OpenAI API), NOT to the internal llama.cpp servers.**
+**The external frontend (OpenWebUI, etc.) connects to port 40083 (OpenAI API), NOT to the internal llama.cpp servers.**
 
 This gives frontends full AI sysadmin capabilities, not just LLM access.
 

@@ -177,14 +177,14 @@ services.ai-sysadmin = {
   # Web Interface
   webInterface = {
     enable = true;
-    port = 8080;
+    port = 40080;
     allowedHosts = [ "localhost" "*.coven.systems" ];
   };
   
   # MCP Server
   mcpServer = {
     enable = true;
-    port = 8081;
+    port = 40081;
     respectAutonomy = true;
   };
   
@@ -241,7 +241,7 @@ services.ai-sysadmin = {
 
 ### Web Interface
 
-- **Port:** 8080 (configurable)
+- **Port:** 40080 (configurable)
 - **Features:**
   - Real-time system metrics
   - Health score visualization
@@ -250,7 +250,7 @@ services.ai-sysadmin = {
 
 ### MCP Server
 
-- **Port:** 8081 (configurable)
+- **Port:** 40081 (configurable)
 - **Protocol:** Model Context Protocol
 - **Features:**
   - Context providers (system status, metrics, logs)

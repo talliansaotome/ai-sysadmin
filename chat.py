@@ -23,7 +23,7 @@ class MachaChatSession:
     
     def __init__(
         self,
-        backend_url: str = "http://localhost:8082/v1",
+        backend_url: str = "http://localhost:40082/v1",
         model: str = "qwen3:14b",
         state_dir: Path = Path("/var/lib/ai-sysadmin"),
         ai_name: str = None,

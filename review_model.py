@@ -20,7 +20,7 @@ class ReviewModel:
         self,
         model: str = "qwen3:4b",
         llm_backend = None,
-        backend_url: str = "http://127.0.0.1:8081/v1",
+        backend_url: str = "http://127.0.0.1:40081/v1",
         context_manager: ContextManager = None,
         executor: SafeExecutor = None,
         state_dir: Path = Path("/var/lib/ai-sysadmin"),

@@ -110,13 +110,13 @@ timescaledb = {
 
 webInterface = {
   enable = false;
-  port = 8080;
+  port = 40080;
   allowedHosts = [ ... ];
 };
 
 mcpServer = {
   enable = false;
-  port = 8081;
+  port = 40081;
   respectAutonomy = true;
 };
 

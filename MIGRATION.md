@@ -86,13 +86,13 @@ services.ai-sysadmin = {
   # Web Interface (NEW)
   webInterface = {
     enable = true;
-    port = 8080;
+    port = 40080;
   };
   
   # MCP Server (NEW)
   mcpServer = {
     enable = false;  # Enable if you want MCP
-    port = 8081;
+    port = 40081;
   };
   
   # SAR integration (NEW)
@@ -180,7 +180,7 @@ journalctl -u macha-ai -f
 
 If enabled:
 ```
-http://localhost:8080
+http://localhost:40080
 ```
 
 ## Configuration Mapping
@@ -318,7 +318,7 @@ sudo systemctl start sshd
 
 ### 5. Test Web Interface
 
-Visit `http://localhost:8080` and verify:
+Visit `http://localhost:40080` and verify:
 - System metrics display
 - Real-time updates
 - Recent events
@@ -360,7 +360,7 @@ ollama pull qwen3:14b
 sudo systemctl status macha-web
 
 # Check firewall
-sudo ss -tlnp | grep 8080
+sudo ss -tlnp | grep 40080
 
 # Check logs
 journalctl -u macha-web -f

@@ -6,7 +6,7 @@ Provides an OpenAI-compatible API that wraps the Meta Model with full
 system administration capabilities. This is what external frontends
 (like OpenWebUI, LibreChat, etc.) should connect to.
 
-Port 8083 by default.
+Port 40083 by default.
 """
 
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -59,7 +59,7 @@ class OpenAIAPIServer:
     def __init__(
         self,
         host: str = "0.0.0.0",
-        port: int = 8083,
+        port: int = 40083,
         meta_model: Optional[MetaModel] = None,
         context_manager: Optional[ContextManager] = None,
         executor: Optional[SafeExecutor] = None,
@@ -373,7 +373,7 @@ if __name__ == "__main__":
     # Create test server (without actual Meta Model for standalone testing)
     server = OpenAIAPIServer(
         host="0.0.0.0",
-        port=8083,
+        port=40083,
         autonomy_level="suggest"
     )
     

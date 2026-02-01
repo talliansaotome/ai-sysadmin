@@ -5,7 +5,7 @@ Issue Tracker - Internal ticketing system for tracking problems and their resolu
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
@@ -29,7 +29,7 @@ class IssueTracker:
     ) -> str:
         """Create a new issue and return its ID"""
         issue_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         
         issue = {
             "issue_id": issue_id,
@@ -69,14 +69,14 @@ class IssueTracker:
             issue["status"] = status
         
         if investigation:
-            investigation["timestamp"] = datetime.utcnow().isoformat()
+            investigation["timestamp"] = datetime.now(timezone.utc).isoformat()
             issue["investigations"].append(investigation)
         
         if action:
-            action["timestamp"] = datetime.utcnow().isoformat()
+            action["timestamp"] = datetime.now(timezone.utc).isoformat()
             issue["actions"].append(action)
         
-        issue["updated_at"] = datetime.utcnow().isoformat()
+        issue["updated_at"] = datetime.now(timezone.utc).isoformat()
         
         self.context_db.update_issue(issue)
         return True
@@ -126,7 +126,7 @@ class IssueTracker:
         
         issue["status"] = "resolved"
         issue["resolution"] = resolution
-        issue["updated_at"] = datetime.utcnow().isoformat()
+        issue["updated_at"] = datetime.now(timezone.utc).isoformat()
         
         self.context_db.update_issue(issue)
         return True
@@ -142,7 +142,7 @@ class IssueTracker:
             return False
         
         issue["status"] = "closed"
-        issue["closed_at"] = datetime.utcnow().isoformat()
+        issue["closed_at"] = datetime.now(timezone.utc).isoformat()
         
         # Archive to closed log
         self._archive_issue(issue)
@@ -211,7 +211,9 @@ class IssueTracker:
         """Calculate age of issue in hours"""
         try:
             created = datetime.fromisoformat(created_at)
-            now = datetime.utcnow()
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
             delta = now - created
             return delta.total_seconds() / 3600
         except:

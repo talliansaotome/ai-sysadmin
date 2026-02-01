@@ -53,7 +53,7 @@ class LLMBackend(ABC):
 class LlamaCppBackend(LLMBackend):
     """Backend for llama.cpp with OpenAI-compatible API"""
     
-    def __init__(self, base_url: str = "http://127.0.0.1:8082/v1"):
+    def __init__(self, base_url: str = "http://127.0.0.1:40082/v1"):
         """
         Initialize llama.cpp backend
         
@@ -273,7 +273,7 @@ def create_backend(backend_type: str = "llama-cpp", **config) -> LLMBackend:
         Configured LLM backend
     """
     if backend_type == "llama-cpp":
-        base_url = config.get("base_url", "http://localhost:8082/v1")
+        base_url = config.get("base_url", "http://localhost:40082/v1")
         return LlamaCppBackend(base_url=base_url)
     elif backend_type == "ollama":
         base_url = config.get("base_url", "http://localhost:11434")
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     
     # Test llama.cpp backend
     print("\n1. Testing llama.cpp backend...")
-    llama_backend = LlamaCppBackend("http://localhost:8082/v1")
+    llama_backend = LlamaCppBackend("http://localhost:40082/v1")
     
     if llama_backend.is_available():
         print("✓ llama.cpp is available")

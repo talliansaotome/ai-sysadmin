@@ -22,15 +22,15 @@ All Python code has been successfully migrated to use llama.cpp via the new LLM 
 #### Updated Files
 1. **`trigger_monitor.py`** - Layer 1 monitoring
    - Uses `LlamaCppBackend` for log classification
-   - Connects to 127.0.0.1:8080 (internal only)
+   - Connects to 127.0.0.1:40080 (internal only)
 
 2. **`review_model.py`** - Layer 3 continuous analysis
    - Uses `LlamaCppBackend` for system reviews
-   - Connects to 127.0.0.1:8081 (internal only)
+   - Connects to 127.0.0.1:40081 (internal only)
 
 3. **`meta_model.py`** - Layer 4 deep analysis
    - Uses `LlamaCppBackend` for complex reasoning
-   - Connects to 127.0.0.1:8082 (internal only)
+   - Connects to 127.0.0.1:40082 (internal only)
    - Simplified tool calling for llama.cpp compatibility
 
 4. **`agent.py`** - Legacy interface
@@ -47,10 +47,10 @@ All Python code has been successfully migrated to use llama.cpp via the new LLM 
 
 ### Security Improvements
 - **Internal Services**: All llama.cpp model servers bind to `127.0.0.1` only
-  - Trigger model: 127.0.0.1:8080
-  - Review model: 127.0.0.1:8081
-  - Meta model: 127.0.0.1:8082
-- **External API**: OpenAI API server is configurable (can be 0.0.0.0:8083 for external access)
+  - Trigger model: 127.0.0.1:40080
+  - Review model: 127.0.0.1:40081
+  - Meta model: 127.0.0.1:40082
+- **External API**: OpenAI API server is configurable (can be 0.0.0.0:40083 for external access)
 
 ### Architecture Benefits
 1. **Production Ready**: llama.cpp is more stable than Ollama for production
@@ -86,7 +86,7 @@ services.ai-sysadmin.llamacpp = {
   
   triggerModel = {
     enable = mkEnableOption "trigger model server" // { default = true; };
-    port = mkOption { type = types.port; default = 8080; };
+    port = mkOption { type = types.port; default = 40080; };
     host = mkOption { type = types.str; default = "127.0.0.1"; };
     model = mkOption { type = types.str; default = "qwen3:1b"; };
     contextSize = mkOption { type = types.int; default = 8192; };
@@ -94,7 +94,7 @@ services.ai-sysadmin.llamacpp = {
   
   reviewModel = {
     enable = mkEnableOption "review model server" // { default = true; };
-    port = mkOption { type = types.port; default = 8081; };
+    port = mkOption { type = types.port; default = 40081; };
     host = mkOption { type = types.str; default = "127.0.0.1"; };
     model = mkOption { type = types.str; default = "qwen3:4b"; };
     contextSize = mkOption { type = types.int; default = 32768; };
@@ -102,7 +102,7 @@ services.ai-sysadmin.llamacpp = {
   
   metaModel = {
     enable = mkEnableOption "meta model server" // { default = true; };
-    port = mkOption { type = types.port; default = 8082; };
+    port = mkOption { type = types.port; default = 40082; };
     host = mkOption { type = types.str; default = "127.0.0.1"; };
     model = mkOption { type = types.str; default = "qwen3:14b"; };
     contextSize = mkOption { type = types.int; default = 131072; };
@@ -111,7 +111,7 @@ services.ai-sysadmin.llamacpp = {
 
 services.ai-sysadmin.openaiApi = {
   enable = mkEnableOption "OpenAI-compatible API server" // { default = true; };
-  port = mkOption { type = types.port; default = 8083; };
+  port = mkOption { type = types.port; default = 40083; };
   host = mkOption { type = types.str; default = "0.0.0.0"; };
   requireAuth = mkOption { type = types.bool; default = false; };
   apiKey = mkOption { type = types.nullOr types.str; default = null; };
@@ -247,17 +247,17 @@ systemctl status ai-sysadmin-api
 systemctl status macha-ai  # Or your configured name
 
 # 5. Test OpenAI API
-curl http://localhost:8083/v1/models
+curl http://localhost:40083/v1/models
 
-# 6. Connect OpenWebUI to http://your-server:8083/v1
+# 6. Connect OpenWebUI to http://your-server:40083/v1
 ```
 
 ## 📝 Notes
 
 - llama.cpp model files need to be downloaded/converted separately
 - GPU acceleration requires appropriate drivers (ROCm or CUDA)
-- Internal services (ports 8080-8082) should remain firewalled
-- Only expose port 8083 if you want external frontend access
+- Internal services (ports 40080-40082) should remain firewalled
+- Only expose port 40083 if you want external frontend access
 
 ## ✅ Summary
 

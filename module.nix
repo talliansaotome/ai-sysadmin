@@ -187,7 +187,7 @@ in {
 
     triggerBackend = mkOption {
       type = types.str;
-      default = "http://127.0.0.1:8080/v1";
+      default = "http://127.0.0.1:40080/v1";
       description = "LLM backend URL for Layer 1";
     };
 
@@ -199,7 +199,7 @@ in {
 
     reviewBackend = mkOption {
       type = types.str;
-      default = "http://127.0.0.1:8081/v1";
+      default = "http://127.0.0.1:40081/v1";
       description = "LLM backend URL for Layer 3";
     };
 
@@ -211,7 +211,7 @@ in {
 
     metaBackend = mkOption {
       type = types.str;
-      default = "http://127.0.0.1:8082/v1";
+      default = "http://127.0.0.1:40082/v1";
       description = "LLM backend URL for Layer 4";
     };
 
@@ -347,7 +347,7 @@ in {
 
       port = mkOption {
         type = types.int;
-        default = 8080;
+        default = 40084;
         description = "Web interface port";
       };
 
@@ -370,7 +370,7 @@ in {
 
       port = mkOption {
         type = types.int;
-        default = 8081;
+        default = 40085;
         description = "MCP server port";
       };
 
@@ -431,7 +431,7 @@ in {
       wants = [ "ai-sysadmin-model-downloader.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
-        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.triggerModel}.gguf --port 8080 --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers 99 --threads ${toString cfg.threads}";
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.triggerModel}.gguf --port 40080 --host 127.0.0.1 --ctx-size 4096 --n-gpu-layers 99 --threads ${toString cfg.threads}";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
@@ -444,7 +444,7 @@ in {
       wants = [ "ai-sysadmin-model-downloader.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
-        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.reviewModel}.gguf --port 8081 --host 127.0.0.1 --ctx-size 32768 --n-gpu-layers 99 --threads ${toString cfg.threads}";
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.reviewModel}.gguf --port 40081 --host 127.0.0.1 --ctx-size 32768 --n-gpu-layers 99 --threads ${toString cfg.threads}";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
@@ -457,7 +457,7 @@ in {
       wants = [ "ai-sysadmin-model-downloader.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
-        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.metaModel}.gguf --port 8082 --host 127.0.0.1 --ctx-size ${toString cfg.contextSize} --n-gpu-layers 99 --threads ${toString cfg.threads}";
+        ExecStart = "${pkgs.llama-cpp}/bin/llama-server --model ${cfg.modelDir}/${cfg.metaModel}.gguf --port 40082 --host 127.0.0.1 --ctx-size ${toString cfg.contextSize} --n-gpu-layers 99 --threads ${toString cfg.threads}";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
@@ -483,7 +483,7 @@ in {
       after = [ "network.target" "llama-meta.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
-        ExecStart = "${pythonEnv}/bin/python3 ${./.}/openai_api_server.py --port 8083";
+        ExecStart = "${pythonEnv}/bin/python3 ${./.}/openai_api_server.py --port 40083";
         Restart = "on-failure";
         User = userName;
         Group = groupName;
@@ -943,7 +943,10 @@ print('='*60)
             
             for issue in issues:
                 issue_id = issue['issue_id'][:8]
-                age_hours = (datetime.utcnow() - datetime.fromisoformat(issue['created_at'])).total_seconds() / 3600
+                created_dt = datetime.fromisoformat(issue['created_at'])
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                age_hours = (datetime.now(timezone.utc) - created_dt).total_seconds() / 3600
                 inv_count = len(issue.get('investigations', []))
                 action_count = len(issue.get('actions', []))
                 
