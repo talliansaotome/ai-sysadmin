@@ -662,6 +662,12 @@ in {
     networking.firewall.allowedTCPPorts = lib.optionals cfg.webInterface.enable [ cfg.webInterface.port ]
       ++ lib.optionals cfg.mcpServer.enable [ cfg.mcpServer.port ];
     
+    environment.systemPackages = with pkgs; [
+      mainScript
+      python313
+      python313Packages.pip
+      python313Packages.chromadb.pythonModule
+      
       # The Unified Brighid CLI
       (pkgs.writeScriptBin "brighid" ''
         #!${pkgs.bash}/bin/bash
