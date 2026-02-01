@@ -377,7 +377,30 @@ Please answer the user's question clearly and honestly. If you're uncertain abou
 def main():
     """Main entry point for macha-chat"""
     
-    # Check for --discuss flag (used by macha-approve discuss)
+    # Check for --ask flag (used by brighid ask)
+    if "--ask" in sys.argv:
+        try:
+            ask_index = sys.argv.index("--ask")
+            question = " ".join(sys.argv[ask_index + 1:])
+            if not question:
+                print("Error: --ask requires a question", file=sys.stderr)
+                sys.exit(1)
+            
+            session = MachaChatSession()
+            response = session.ask_once(question, verbose=False)
+            
+            print("\n" + "=" * 60)
+            print(f"🤖 {session.ai_name.upper()}:")
+            print("=" * 60)
+            print(response)
+            print("=" * 60)
+            print()
+            return
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Check for --discuss flag (used by brighid approve discuss)
     if "--discuss" in sys.argv:
         try:
             discuss_index = sys.argv.index("--discuss")
