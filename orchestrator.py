@@ -9,7 +9,8 @@ Layer 4: Meta Model - On-demand deep analysis and user interaction
 """
 
 import os
-# Disable telemetry early
+# Disable telemetry and .env reading early
+os.environ["CHROMA_ENV_FILE"] = ""
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY_ENABLED"] = "False"
 

@@ -461,7 +461,7 @@ def get_index_html() -> str:
     <div class="container">
         <header>
             <div>
-                <h1>🤖 Macha AI Sysadmin</h1>
+                <h1>🤖 Brighid AI Sysadmin</h1>
                 <div style="margin-top: 5px;">
                     <span id="hostname" style="color: #94a3b8;">-</span> | 
                     <span id="update-time" style="color: #64748b;">-</span>
@@ -526,7 +526,7 @@ def get_index_html() -> str:
         </div>
         
         <footer>
-            Macha AI Sysadmin - Autonomous monitoring and maintenance
+            Brighid AI Sysadmin - Autonomous monitoring and maintenance
         </footer>
     </div>
     

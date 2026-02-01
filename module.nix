@@ -672,6 +672,10 @@ in {
       (pkgs.writeScriptBin "brighid" ''
         #!${pkgs.bash}/bin/bash
         
+        # Disable ChromaDB .env searching globally for the CLI
+        export CHROMA_ENV_FILE=""
+        export ANONYMIZED_TELEMETRY="False"
+        
         # Helper to run python scripts as the AI user
         run_ai_tool() {
           local script=$1

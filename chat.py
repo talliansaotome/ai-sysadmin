@@ -6,6 +6,12 @@ Unified chat/conversation interface using tool-calling architecture.
 
 import json
 import os
+
+# Disable telemetry and .env reading early
+os.environ["CHROMA_ENV_FILE"] = ""
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY_ENABLED"] = "False"
+
 import subprocess
 import sys
 from datetime import datetime, timezone
