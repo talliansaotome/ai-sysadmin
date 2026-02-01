@@ -184,8 +184,8 @@ async def get_metrics_history(hours: int = 24) -> Dict[str, Any]:
     if not timeseries_db:
         return {"error": "TimescaleDB not available"}
     
-            import socket
-            hostname = socket.gethostname()    
+    import socket
+    hostname = socket.gethostname()
     try:
         metrics = timeseries_db.query_metrics(
             hostname,
