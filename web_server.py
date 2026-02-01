@@ -61,8 +61,9 @@ async def root():
 @app.get("/api/status")
 async def get_status() -> Dict[str, Any]:
     """Get current system status"""
-            import socket
-            hostname = socket.gethostname()    
+    import socket
+    hostname = socket.gethostname()
+
     # Get basic metrics
     cpu_percent = psutil.cpu_percent(interval=0.5)
     memory = psutil.virtual_memory()
