@@ -140,30 +140,31 @@ async def get_summary() -> Dict[str, Any]:
     
     # Get recent context
     try:
-        context_stats = context_manager.get_context_window(
-            include_sar=False,
-            include_metrics=False,
-            max_tokens=1000  # Brief summary
-        )
-        
-        # Parse out key information
-        entries = list(context_manager.context_entries)[-10:]  # Last 10 events
-        
         # Summarize recent events
+        entries = list(context_manager.context_entries)[-20:]  # Last 20 events
+        
         event_summary = []
         for entry in entries:
             event = entry.get('event', {})
             event_type = event.get('type', 'unknown')
-            message = event.get('message', event.get('summary', 'Unknown event'))
+            
+            # Extract most useful message
+            message = event.get('message') or event.get('summary') or event.get('description') or "System event"
+            
+            # Clean up message if it's too long
+            if len(message) > 200:
+                message = message[:197] + "..."
+                
             event_summary.append({
                 'type': event_type,
                 'message': message,
+                'severity': event.get('severity', 'info'),
                 'timestamp': entry.get('timestamp')
             })
         
         return {
             "summary": "System operational. Recent activity tracked.",
-            "recent_events": event_summary,
+            "recent_events": sorted(event_summary, key=lambda x: x['timestamp'], reverse=True),
             "context_stats": {
                 "entries": len(context_manager.context_entries),
                 "tokens": context_manager.current_token_count,
@@ -176,6 +177,19 @@ async def get_summary() -> Dict[str, Any]:
             "summary": f"Error generating summary: {e}",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+
+
+@app.get("/api/decisions")
+async def get_decisions(limit: int = 5) -> Dict[str, Any]:
+    """Get latest AI decisions and analysis"""
+    if not context_manager or not context_manager.context_db:
+        return {"decisions": []}
+    
+    try:
+        decisions = context_manager.context_db.get_recent_decisions(n_results=limit)
+        return {"decisions": decisions}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.get("/api/metrics/history")
@@ -268,11 +282,13 @@ def get_index_html() -> str:
             margin-bottom: 30px;
             padding-bottom: 20px;
             border-bottom: 2px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         h1 {
             font-size: 2rem;
-            margin-bottom: 10px;
             color: #60a5fa;
         }
         
@@ -290,7 +306,7 @@ def get_index_html() -> str:
         
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -300,12 +316,16 @@ def get_index_html() -> str:
             border-radius: 10px;
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
         }
         
         .card h2 {
             font-size: 1.2rem;
             margin-bottom: 15px;
             color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .metric {
@@ -343,19 +363,71 @@ def get_index_html() -> str:
         
         .event-list {
             list-style: none;
+            max-height: 400px;
+            overflow-y: auto;
         }
         
         .event-item {
-            padding: 10px;
+            padding: 12px;
             margin-bottom: 8px;
             background: #0f172a;
             border-radius: 5px;
-            border-left: 3px solid #60a5fa;
+            border-left: 4px solid #3b82f6;
+            font-size: 0.95rem;
         }
+        
+        .event-item.critical { border-left-color: #ef4444; }
+        .event-item.high { border-left-color: #f97316; }
+        .event-item.medium { border-left-color: #f59e0b; }
         
         .event-time {
             font-size: 0.8rem;
             color: #64748b;
+            margin-top: 4px;
+        }
+
+        .decision-card {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 5px solid #8b5cf6;
+            margin-bottom: 20px;
+        }
+
+        .decision-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .decision-status {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .issue-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #334155;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        .issue-high { color: #fca5a5; border: 1px solid #7f1d1d; }
+        .issue-medium { color: #fde68a; border: 1px solid #78350f; }
+
+        .action-box {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            border: 1px dashed #4b5563;
         }
         
         .loading {
@@ -372,22 +444,40 @@ def get_index_html() -> str:
             color: #64748b;
             font-size: 0.9rem;
         }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🤖 AI System Administrator</h1>
-            <div id="status-badge" class="status-indicator">Loading...</div>
-            <div style="margin-top: 10px;">
-                <span id="hostname" style="color: #94a3b8;">-</span> | 
-                <span id="update-time" style="color: #64748b;">-</span>
+            <div>
+                <h1>🤖 Macha AI Sysadmin</h1>
+                <div style="margin-top: 5px;">
+                    <span id="hostname" style="color: #94a3b8;">-</span> | 
+                    <span id="update-time" style="color: #64748b;">-</span>
+                </div>
             </div>
+            <div id="status-badge" class="status-indicator">CONNECTING...</div>
         </header>
+
+        <div id="ai-analysis-container">
+            <!-- Latest AI Decision will be injected here -->
+            <div class="card loading">Waiting for AI Analysis...</div>
+        </div>
         
         <div class="grid">
             <div class="card">
-                <h2>System Metrics</h2>
+                <h2>📊 System Metrics</h2>
                 <div class="metric">
                     <div class="metric-label">CPU Usage</div>
                     <div class="metric-value" id="cpu-value">-</div>
@@ -412,7 +502,7 @@ def get_index_html() -> str:
             </div>
             
             <div class="card">
-                <h2>System Health</h2>
+                <h2>🏥 System Health</h2>
                 <div class="metric">
                     <div class="metric-label">Health Score</div>
                     <div class="metric-value" id="health-score">-</div>
@@ -428,7 +518,7 @@ def get_index_html() -> str:
             </div>
             
             <div class="card" style="grid-column: span 2;">
-                <h2>Recent Events</h2>
+                <h2>🔔 Recent Activity</h2>
                 <ul class="event-list" id="event-list">
                     <li class="loading">Loading events...</li>
                 </ul>
@@ -436,7 +526,7 @@ def get_index_html() -> str:
         </div>
         
         <footer>
-            AI System Administrator - Autonomous monitoring and maintenance
+            Macha AI Sysadmin - Autonomous monitoring and maintenance
         </footer>
     </div>
     
@@ -492,18 +582,64 @@ def get_index_html() -> str:
                 if (data.recent_events && data.recent_events.length > 0) {
                     data.recent_events.forEach(event => {
                         const li = document.createElement('li');
-                        li.className = 'event-item';
+                        li.className = 'event-item ' + (event.severity || 'info');
                         li.innerHTML = `
-                            <div>${event.message}</div>
-                            <div class="event-time">${new Date(event.timestamp).toLocaleString()}</div>
+                            <div style="font-weight: 500;">${event.message}</div>
+                            <div class="event-time">${new Date(event.timestamp).toLocaleString()} • ${event.type}</div>
                         `;
                         eventList.appendChild(li);
                     });
                 } else {
-                    eventList.innerHTML = '<li class="loading">No recent events</li>';
+                    eventList.innerHTML = '<li class="loading">No recent activity</li>';
                 }
             } catch (error) {
                 console.error('Error fetching summary:', error);
+            }
+        }
+
+        async function fetchDecisions() {
+            try {
+                const response = await fetch('/api/decisions?limit=1');
+                const data = await response.json();
+                
+                const container = document.getElementById('ai-analysis-container');
+                
+                if (data.decisions && data.decisions.length > 0) {
+                    const decision = data.decisions[0];
+                    const analysis = decision.analysis;
+                    
+                    let issuesHtml = '';
+                    if (analysis.issues && analysis.issues.length > 0) {
+                        issuesHtml = analysis.issues.map(issue => 
+                            `<span class="issue-tag issue-${issue.severity}">${issue.severity.toUpperCase()}: ${issue.description}</span>`
+                        ).join('');
+                    }
+
+                    container.innerHTML = `
+                        <div class="decision-card">
+                            <div class="decision-header">
+                                <div>
+                                    <h2 style="color: #a78bfa; margin-bottom: 5px;">🧠 Latest AI Analysis</h2>
+                                    <div class="event-time">Generated at ${new Date(decision.timestamp).toLocaleString()}</div>
+                                </div>
+                                <span class="status-indicator status-${analysis.status}">${analysis.status.toUpperCase()}</span>
+                            </div>
+                            
+                            <p style="margin-bottom: 15px; line-height: 1.5;">${analysis.summary}</p>
+                            
+                            <div style="margin-bottom: 15px;">
+                                ${issuesHtml}
+                            </div>
+                            
+                            <div class="action-box">
+                                <strong style="color: #60a5fa; font-size: 0.9rem;">RECOMENDED ACTIONS:</strong>
+                                <p style="margin-top: 5px; font-size: 0.95rem;">${decision.action.proposed_action || 'No immediate actions required.'}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error fetching decisions:', error);
             }
         }
         
@@ -529,7 +665,9 @@ def get_index_html() -> str:
         // Initialize
         connectWebSocket();
         fetchSummary();
-        setInterval(fetchSummary, 30000);  // Update summary every 30s
+        fetchDecisions();
+        setInterval(fetchSummary, 15000);  // Update summary every 15s
+        setInterval(fetchDecisions, 600000); // Update AI analysis every 10m
     </script>
 </body>
 </html>

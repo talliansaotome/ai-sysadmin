@@ -242,6 +242,17 @@ class NewOrchestrator:
             cycle_result['layer3_result'] = review_result
             self.last_review_check = now
             
+            # Store decision in database
+            if self.context_db and review_result.get('status') != 'error':
+                import socket
+                hostname = socket.gethostname()
+                self.context_db.store_decision(
+                    system=hostname,
+                    analysis=review_result,
+                    action={"proposed_action": " | ".join([a.get('description', '') for a in review_result.get('safe_actions', [])])},
+                    outcome={"status": "pending"}
+                )
+            
             # Check if we should escalate to Layer 4
             if review_result.get('escalation_recommended', False):
                 self._log(f"[Cycle {self.cycle_count}] Escalating to Layer 4: Meta Model")
