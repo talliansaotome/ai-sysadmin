@@ -23,6 +23,7 @@ let
     uvicorn
     websockets
     openai
+    sse-starlette
   ]);
 
   # Model Downloader Script
@@ -634,7 +635,7 @@ in {
         User = userName;
         Group = groupName;
         WorkingDirectory = stateDir;
-        ExecStart = "${pythonEnv}/bin/python3 ${./.}/mcp_server.py --autonomy ${cfg.autonomyLevel}";
+        ExecStart = "${pythonEnv}/bin/python3 ${./.}/mcp_server.py --autonomy ${cfg.autonomyLevel} --sse";
         Restart = "on-failure";
         RestartSec = "10s";
         
