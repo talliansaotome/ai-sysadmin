@@ -247,12 +247,30 @@ class NewOrchestrator:
             if self.context_db and review_result.get('status') != 'error':
                 import socket
                 hostname = socket.gethostname()
+                
+                decision_data = {
+                    "system": hostname,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "analysis": review_result,
+                    "action": {"proposed_action": " | ".join([a.get('description', '') for a in review_result.get('safe_actions', [])])},
+                    "outcome": {"status": "pending"}
+                }
+                
+                # 1. Store in ChromaDB (for RAG)
                 self.context_db.store_decision(
-                    system=hostname,
-                    analysis=review_result,
-                    action={"proposed_action": " | ".join([a.get('description', '') for a in review_result.get('safe_actions', [])])},
-                    outcome={"status": "pending"}
+                    system=decision_data["system"],
+                    analysis=decision_data["analysis"],
+                    action=decision_data["action"],
+                    outcome=decision_data["outcome"]
                 )
+                
+                # 2. Append to JSONL log (for Web UI / CLI tailing)
+                try:
+                    log_path = self.state_dir / "decisions.jsonl"
+                    with open(log_path, 'a') as f:
+                        f.write(json.dumps(decision_data) + '\n')
+                except Exception as e:
+                    self._log(f"Warning: Could not write to decisions.jsonl: {e}")
             
             # Check if we should escalate to Layer 4
             if review_result.get('escalation_recommended', False):
