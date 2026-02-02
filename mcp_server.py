@@ -17,6 +17,7 @@ from pathlib import Path
 # MCP imports (will need to be installed)
 try:
     from mcp.server import Server
+    from mcp.server.stdio import stdio_server
     from mcp.types import (
         Resource, Tool, TextContent, ImageContent,
         EmbeddedResource, LoggingLevel
@@ -399,7 +400,13 @@ class AISysadminMCPServer:
     
     async def run_stdio(self):
         """Run the MCP server over stdio"""
-        await self.server.run_stdio_async()
+        from mcp.server.stdio import stdio_server
+        async with stdio_server() as (read_stream, write_stream):
+            await self.server.run(
+                read_stream,
+                write_stream,
+                self.server.create_initialization_options()
+            )
 
     async def run_sse(self):
         """Run the MCP server over SSE using Starlette/Uvicorn"""
