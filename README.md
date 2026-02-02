@@ -1,99 +1,26 @@
-# AI-Powered Autonomous System Administrator
+# Brighid - AI-Powered Autonomous System Administrator
 
-An AI-powered autonomous system administrator for NixOS that monitors system health, diagnoses issues, and can take corrective actions with appropriate approval workflows.
+**Brighid** is an autonomous AI system administrator for NixOS, embodied as a wise and diligent guardian of your system's "hearth." Inspired by the Celtic goddess of wisdom, smithcraft, and healing, she monitors system health, diagnoses issues, and performs maintenance with a focus on safety and declarative configuration.
 
-The AI assistant's name is configurable and defaults to your system's hostname, making this software easily distributable and adaptable to any environment.
+The project features a robust **4-layer architecture** for efficient monitoring and reasoning, a unified **CLI**, a **Web Dashboard**, and an **MCP Server** for integration with other AI agents.
 
-## 🆕 New Four-Layer Architecture
+## 🌟 Key Features
 
-This project has been redesigned with a four-layer architecture for improved efficiency and scalability:
+- **4-Layer AI Architecture**:
+  - **Layer 1 (Trigger Monitor)**: Continuous, lightweight monitoring (every 30s) using a small 1B parameter model.
+  - **Layer 2 (Context Manager)**: Maintains a rolling token window of system state, logs, and metrics.
+  - **Layer 3 (Review Model)**: Periodic holistic analysis (every 10m) using a mid-sized 4B parameter model.
+  - **Layer 4 (Meta Model)**: Deep analysis and user interaction using a large 14B+ parameter model.
+- **Unified CLI**: A single `brighid` command for all operations.
+- **Web Dashboard**: Real-time status, metrics, and AI insights.
+- **Model Context Protocol (MCP)**: Exposes system state and tools to external agents (like Gemini or Claude).
+- **Safety First**: Configurable autonomy levels (`observe`, `suggest`, `auto-safe`, `auto-full`) and strict approval workflows for risky actions.
+- **Self-Healing**: Automatically detects and fixes model server issues and common system faults.
+- **Declarative & Reproducible**: Fully integrated NixOS module.
 
-- **Layer 1**: Trigger Monitor (continuous, lightweight detection)
-- **Layer 2**: Context Manager (token-based rolling window)
-- **Layer 3**: Review Model (periodic analysis with small model)
-- **Layer 4**: Meta Model (on-demand complex analysis)
+## 🚀 Quick Start
 
-**📖 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation**  
-**🔄 Migrating? See [MIGRATION.md](MIGRATION.md) for upgrade guide**
-
-## Features
-
-- **Autonomous Monitoring**: Continuous health checks with configurable intervals
-- **Multi-Host Management**: SSH-based management of multiple NixOS hosts
-- **Configurable AI Identity**: AI name defaults to system hostname, fully customizable
-- **Tool Calling**: Comprehensive system administration tools via Ollama LLM
-- **Queue-Based Architecture**: Serialized LLM requests to prevent resource contention
-- **Knowledge Base**: ChromaDB-backed learning system for operational wisdom
-- **Approval Workflows**: Safety-first approach with configurable autonomy levels
-- **Notification System**: Gotify integration for alerts
-- **Multi-OS Support**: Manages NixOS, Ubuntu, Debian, Arch, and other Linux distributions
-
-## Requirements
-
-### Hardware
-
-- **CPU**: Modern multi-core processor
-- **RAM**: At least 16GB recommended for larger models (8GB minimum for smaller models)
-- **Disk**: At least 20-50GB free space for model storage (depending on which models you use)
-- **GPU** (Optional but recommended):
-  - **AMD GPUs**: Set `ollamaAcceleration = "rocm"` (tested on RX 7900 XT)
-  - **NVIDIA GPUs**: Set `ollamaAcceleration = "cuda"`
-  - **CPU-only**: Set `ollamaAcceleration = null` (default, slower but works everywhere)
-
-### Software
-
-- **NixOS** with flakes enabled
-- **Git** (installed automatically by the module)
-
-### What's Included Automatically
-
-When using the NixOS module (`ai-sysadmin.nixosModules.default`), the following are **automatically installed and configured**:
-
-- ✅ **Ollama** - AI inference engine (CPU-only by default, GPU acceleration optional)
-- ✅ **ChromaDB** - Vector database for context and knowledge (port 8000)
-- ✅ **Python 3** - With all required dependencies (requests, psutil, chromadb)
-- ✅ **Git** - For configuration management
-- ✅ **Systemd services** - Autonomous operation and queue worker
-- ✅ **CLI tools** - All `{aiName}-*` commands
-
-### Model Downloads
-
-By default, models are downloaded **on-demand** when first used. To pre-download models (~50GB), set:
-
-```nix
-services.ai-sysadmin.preloadModels = true;
-```
-
-This will automatically download: gpt-oss, gpt-oss:20b, qwen3 variants, gemma3, mistral:7b, and embedding models.
-
-### GPU Acceleration (Optional)
-
-```nix
-services.ai-sysadmin.ollamaAcceleration = "rocm";  # AMD GPUs
-# OR
-services.ai-sysadmin.ollamaAcceleration = "cuda";  # NVIDIA GPUs
-# OR
-services.ai-sysadmin.ollamaAcceleration = null;    # CPU-only (default)
-```
-
-### Optional Components
-
-- **Gotify** - For notifications (not included, you must provide your own server)
-
-### Running Without NixOS
-
-If not using the NixOS module, you'll need to manually install:
-- Ollama (https://ollama.com/) with gpt-oss:20b model
-- ChromaDB (https://www.trychroma.com/)
-- Python 3.10+ with dependencies from `requirements.txt`
-
-**Using the [NixOS module](#quick-start) is strongly recommended** as it handles nearly everything automatically.
-
-## Quick Start
-
-### As a NixOS Flake Input
-
-Add to your `flake.nix`:
+### 1. Add to your `flake.nix`
 
 ```nix
 {
@@ -109,24 +36,15 @@ Add to your `flake.nix`:
         {
           services.ai-sysadmin = {
             enable = true;
-            aiName = "MyAssistant";      # Optional: defaults to hostname
-            autonomyLevel = "suggest";    # observe, suggest, auto-safe, auto-full
-            checkInterval = 300;          # seconds
-            ollamaHost = "http://localhost:11434";
-            model = "gpt-oss:20b";
+            aiName = "Brighid";           # The persona name
+            autonomyLevel = "suggest";    # Start with 'suggest' mode
             
-            # Optional: GPU acceleration (null=CPU, "rocm"=AMD, "cuda"=NVIDIA)
-            ollamaAcceleration = null;    # CPU-only by default
+            # Hardware Acceleration (Recommended)
+            llama-cpp.acceleration = "cuda"; # or "rocm" for AMD, or null for CPU
             
-            # Optional: Pre-download models (~50GB)
-            preloadModels = false;        # Download on-demand by default
-            
-            # Optional: Gotify notifications
-            gotifyUrl = "http://your-gotify-server:8181";
-            gotifyToken = "your-token-here";
-            
-            # Optional: Remote systems to manage
-            remoteSystems = [ "server1" "server2" ];
+            # Enable Interfaces
+            webInterface.enable = true;
+            mcpServer.enable = true;
           };
         }
       ];
@@ -135,186 +53,81 @@ Add to your `flake.nix`:
 }
 ```
 
-### Configuring the AI Name
+### 2. Rebuild and Activate
 
-By default, the AI will be named after your system's short hostname. For example:
-- Host `server.example.com` → AI name: `server`
-- Host `mybox.local` → AI name: `mybox`
+```bash
+sudo nixos-rebuild switch --flake .#yourhost
+```
 
-You can override this:
+Brighid will automatically download the necessary models (Qwen 2.5 series) and start her watch.
 
+## 🛠️ The Unified CLI
+
+Brighid provides a single command for all interactions:
+
+| Command | Description |
+| :--- | :--- |
+| `brighid chat` | Start an interactive chat session with the Meta Model. |
+| `brighid ask "..."` | Ask a single question about the system. |
+| `brighid check` | Trigger an immediate analysis cycle (Layer 1 -> Layer 3). |
+| `brighid approve list` | Show pending actions requiring approval. |
+| `brighid approve discuss <ID>` | Discuss a pending action before approving. |
+| `brighid logs` | View logs (`orchestrator`, `service`, `decisions`). |
+| `brighid notify` | Send a test notification. |
+
+## 📊 Web Dashboard
+
+Enable the web interface in your config:
 ```nix
-services.ai-sysadmin.aiName = "HAL";  # Custom name
+services.ai-sysadmin.webInterface.enable = true;
 ```
 
-The AI name appears in:
-- Chat interfaces
-- Log messages
-- System prompts
-- Notifications
+Access the dashboard at **`http://<your-ip>:40084`**.
+It provides:
+- Real-time system health score.
+- Live CPU, Memory, and Disk metrics.
+- Recent event log (triggers, log patterns).
+- **Latest AI Analysis**: Detailed insights from the Layer 3 Review Model.
 
-## Configuration Options
+## 🔌 Model Context Protocol (MCP)
 
-### Core Settings
+Brighid acts as an MCP server, allowing other AI agents (like Gemini CLI or Claude Desktop) to query your system status or logs.
 
-- `aiName` (string, default: hostname) - Name of the AI assistant
-- `autonomyLevel` (enum) - Level of autonomy:
-  - `observe` - Only monitor and log, no actions
-  - `suggest` - Propose actions, require manual approval
-  - `auto-safe` - Auto-execute low-risk actions
-  - `auto-full` - Full autonomy with safety limits
-- `checkInterval` (int, default: 300) - Seconds between health checks
-- `ollamaHost` (string) - Ollama API endpoint
-- `model` (string) - LLM model to use
-- `user` / `group` (string, default: "macha") - Service user/group
-- `gotifyUrl` / `gotifyToken` - Notification settings
-- `remoteSystems` (list) - Remote hosts to manage
-- `configRepo` (string) - NixOS configuration repository URL
-- `configBranch` (string, default: "main") - Repository branch
+**Enable in config:**
+```nix
+services.ai-sysadmin.mcpServer.enable = true;
+```
 
-See `module.nix` for complete configuration options.
-
-## CLI Tools
-
-All tools use the configured AI name in their output. Commands are named `{aiName}-<tool>`, for example if your AI is named "hal", you'd use `hal-chat`, `hal-ask`, etc.
-
-- `{aiName}-chat` - Interactive chat interface with the AI
-- `{aiName}-ask <question>` - Ask a single question
-- `{aiName}-check` - Trigger immediate health check
-- `{aiName}-approve` - Approve/discuss pending actions
-  - `{aiName}-approve list` - Show pending actions
-  - `{aiName}-approve discuss <N>` - Interactive Q&A about action N
-  - `{aiName}-approve approve <N>` - Approve action N
-  - `{aiName}-approve reject <N>` - Reject action N
-- `{aiName}-logs [orchestrator|decisions|actions|service]` - View logs
-- `{aiName}-issues` - Query issue database
-- `{aiName}-knowledge` - Query/manage knowledge base
-- `{aiName}-systems` - List managed systems
-- `{aiName}-configs <query>` - Semantic search for config files
-- `{aiName}-notify <title> <message> [priority]` - Send notification
-
-## Architecture
-
-### Core Components
-
-- **Agent** (`agent.py`) - Core AI logic with tool calling and dynamic system prompt
-- **Orchestrator** (`orchestrator.py`) - Main monitoring loop and system coordination
-- **Executor** (`executor.py`) - Safe action execution with approval workflows
-- **Queue System** (`ollama_queue.py`, `ollama_worker.py`) - Serialized Ollama requests with priorities
-- **Context DB** (`context_db.py`) - ChromaDB for system context, knowledge, and learning
-- **Tools** (`tools.py`) - System administration capabilities
-- **System Discovery** (`system_discovery.py`) - Automatic discovery of managed systems
-- **Issue Tracker** (`issue_tracker.py`) - Track and resolve system issues
-
-### Services
-
-- `{aiName}-ai.service` - Main autonomous monitoring service (e.g., `myserver-ai.service`)
-- `{aiName}-ollama-worker.service` - LLM request queue processor
-- `chromadb.service` - Vector database for context and knowledge
-
-### State Directories
-
-- `/var/lib/ai-sysadmin/` - Main state directory
-- `/var/lib/ai-sysadmin/queues/` - Request queues
-- `/var/lib/ai-sysadmin/tool_cache/` - Cached tool outputs
-- `/var/lib/ai-sysadmin/logs/` - Log files and archived issues
-- `/var/lib/chromadb/` - Vector database storage
-
-## Requirements
-
-- **NixOS** with flakes enabled
-- **Ollama** service with a compatible model (e.g., llama3.1:70b, qwen3, gpt-oss)
-- **Python 3** with packages: requests, psutil, chromadb
-- **ChromaDB** service for vector storage
-- (Optional) **Gotify** server for notifications
-
-## Multi-Host Management
-
-The system can manage multiple hosts via SSH:
-
-1. **Discovery**: Automatically discovers systems from journal logs
-2. **OS Detection**: Identifies NixOS, Ubuntu, Debian, Arch, macOS, etc.
-3. **SSH Management**: Uses `command_patterns.py` for consistent SSH commands
-4. **Remote Deployment**: Uses `nh` for NixOS configuration deployment
-5. **System Registry**: Tracks all managed systems in ChromaDB
-
-## Safety Features
-
-- **Approval Workflows**: High-risk actions require human approval
-- **Command Allow-List**: Only permitted system commands can be executed
-- **Critical Service Protection**: Never disables SSH, networking, or boot services
-- **Risk-Based Execution**: Automatic execution only for low-risk investigation commands
-- **Interactive Discussion**: Ask questions about proposed actions before approving
-
-## Documentation
-
-- `DESIGN.md` - Comprehensive architecture and design documentation
-- `EXAMPLES.md` - Usage examples and patterns
-- `NOTIFICATIONS.md` - Notification system guide
-- `QUICKSTART.md` - Quick start guide
-- `SUMMARY.md` - Project summary
-
-## Example Usage
-
-### Interactive Chat
-
+**Connect via SSH (Remote):**
+Configure your client to run:
 ```bash
-$ myserver-chat
-🌐 MYSERVER INTERACTIVE CHAT
-═══════════════════════════════════════════════════════════════════
-Type your message and press Enter. Commands:
-  /exit or /quit - End the chat session
-  /clear - Clear conversation history
-  /history - Show conversation history
-  /debug - Show Ollama connection status
-═══════════════════════════════════════════════════════════════════
-
-💬 YOU: What's the current system load?
-
-🤖 MYSERVER: [AI responds with system information]
+ssh user@host "brighid mcp"
 ```
+*(Note: Ensure the `brighid` command is in the path or use the full path)*
 
-### Single Question
+## 🧠 Architecture Details
 
-```bash
-$ myserver-ask "Why is the disk usage so high?"
-═══════════════════════════════════════════════════════════════════
-MYSERVER:
-═══════════════════════════════════════════════════════════════════
-[AI analyzes disk usage and provides explanation]
-```
+### The 4 Layers
+1.  **Trigger Monitor (qwen3:1b)**: Fast pattern matching on logs and metrics. Fires alerts.
+2.  **Context Manager**: Aggregates triggers, logs, and timeseries data into a coherent prompt context.
+3.  **Review Model (qwen3:4b)**: Periodically reviews the context. "Is the system healthy? What needs attention?"
+4.  **Meta Model (qwen3:14b)**: The "Brain." Handles user chat, complex debugging, and root cause analysis.
 
-### Approval Workflow
+### Databases
+- **ChromaDB**: Vector store for semantic memory (past issues, knowledge base, system facts).
+- **TimescaleDB**: Time-series storage for long-term metric trending.
 
-```bash
-$ myserver-approve list
-Pending Actions:
-  [0] Restart failed service: nginx
-      Risk: MEDIUM | Commands: systemctl restart nginx
+## 🔒 Safety & Permissions
 
-$ myserver-approve discuss 0
-[Interactive discussion about the proposed action]
-
-$ myserver-approve approve 0
-Action approved and executed.
-```
-
-## Repository
-
-**GitHub**: https://github.com/talliansaotome/ai-sysadmin
+- **User**: Runs as `brighid-ai` (UID 2501).
+- **Privileges**: Uses `sudo` rules for specific maintenance commands (`systemctl`, `nixos-rebuild`, etc.).
+- **Autonomy**:
+  - `suggest`: AI proposes actions, you must `brighid approve` them.
+  - `auto-safe`: AI runs low-risk fixes (restart services, clear cache) automatically.
+  - `auto-full`: Full autonomy (use with caution).
 
 ## License
 
-This project is licensed under the **Peer Production License (PPL)** - see the [LICENSE](LICENSE) file for details.
-
-The PPL is a copyfarleft license that allows:
-- ✅ Worker-owned cooperatives and collectives to use commercially
-- ✅ Non-profit organizations to use for any purpose
-- ✅ Individuals to use for personal/non-commercial purposes
-- ❌ For-profit companies using wage labor to use commercially
-
-For more information about the Peer Production License, see: https://wiki.p2pfoundation.net/Peer_Production_License
-
-## Author
-
-Lily Miller (with assistance from Claude 4.5 Sonnet)
+Licensed under the **Peer Production License (PPL)**.
+- ✅ Individuals, Co-ops, Non-profits.
+- ❌ Capitalist corporations.
