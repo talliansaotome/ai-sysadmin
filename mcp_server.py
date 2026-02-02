@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 MCP Server - Model Context Protocol server for AI Sysadmin
 
@@ -8,6 +9,7 @@ with the system administration capabilities.
 import json
 import os
 import socket
+import asyncio
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +25,17 @@ try:
 except ImportError:
     print("Warning: MCP library not available. Install with: pip install mcp")
     MCP_AVAILABLE = False
+
+# SSE imports
+try:
+    from mcp.server.sse import SseServerTransport
+    from starlette.applications import Starlette
+    from starlette.routing import Route, Mount
+    from starlette.requests import Request
+    from sse_starlette.sse import EventSourceResponse
+    SSE_AVAILABLE = True
+except ImportError:
+    SSE_AVAILABLE = False
 
 from context_manager import ContextManager
 from timeseries_db import TimeSeriesDB
@@ -74,7 +87,7 @@ class AISysadminMCPServer:
             print(f"Warning: Could not initialize all components: {e}")
         
         # Create MCP server
-        self.server = Server("ai-sysadmin", host=self.host, port=self.port)
+        self.server = Server("ai-sysadmin")
         
         # Register resources (context providers)
         self._register_resources()
@@ -384,9 +397,36 @@ class AISysadminMCPServer:
         
         return json.dumps(result, indent=2)
     
-    async def run(self):
-        """Run the MCP server"""
-        await self.server.run()
+    async def run_stdio(self):
+        """Run the MCP server over stdio"""
+        await self.server.run_stdio_async()
+
+    async def run_sse(self):
+        """Run the MCP server over SSE using Starlette/Uvicorn"""
+        if not SSE_AVAILABLE:
+            raise RuntimeError("SSE support not available. Install 'sse-starlette'")
+            
+        import uvicorn
+        
+        sse = SseServerTransport("/messages")
+        
+        async def handle_sse(request: Request):
+            async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
+                await self.server.run(streams[0], streams[1], self.server.create_initialization_options())
+        
+        async def handle_messages(request: Request):
+            await sse.handle_post_message(request.scope, request.receive, request._send)
+            
+        app = Starlette(
+            routes=[
+                Route("/sse", endpoint=handle_sse),
+                Route("/messages", endpoint=handle_messages, methods=["POST"])
+            ]
+        )
+        
+        config = uvicorn.Config(app, host=self.host, port=self.port, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
 
 
 async def main():
@@ -413,6 +453,11 @@ async def main():
         default=40085,
         help="Port to listen on (default 40085)"
     )
+    parser.add_argument(
+        "--sse",
+        action="store_true",
+        help="Run in SSE mode (default is stdio if not specified, unless run as service)"
+    )
     
     args = parser.parse_args()
     
@@ -422,13 +467,19 @@ async def main():
             host=args.host,
             port=args.port
         )
-        await server.run()
+        
+        # Check if running as a service (implied by --sse flag or just checking args)
+        if args.sse:
+            print(f"Starting MCP server in SSE mode on {args.host}:{args.port}...")
+            await server.run_sse()
+        else:
+            # Default to stdio for CLI usage
+            await server.run_stdio()
+            
     except RuntimeError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
-

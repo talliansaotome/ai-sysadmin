@@ -791,6 +791,11 @@ tracker = IssueTracker(db)
               *) echo "Usage: brighid config [search|read]" ;;
             esac
             ;;
+          mcp)
+            shift
+            # Run the MCP server in stdio mode for SSH tunneling
+            run_ai_tool mcp_server.py --autonomy ${cfg.autonomyLevel} "$@"
+            ;;
           notify)
             shift
             export GOTIFY_URL="${cfg.gotifyUrl}"
