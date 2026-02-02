@@ -181,7 +181,28 @@ async def get_summary() -> Dict[str, Any]:
 
 @app.get("/api/decisions")
 async def get_decisions(limit: int = 5) -> Dict[str, Any]:
-    """Get latest AI decisions and analysis"""
+    """Get latest AI decisions directly from the log file"""
+    # Prefer reading from the JSONL log for chronological accuracy
+    log_path = Path("/var/lib/ai-sysadmin/decisions.jsonl")
+    decisions = []
+    
+    if log_path.exists():
+        try:
+            # Read last N lines
+            with open(log_path, 'r') as f:
+                # Simple deque for tailing
+                from collections import deque
+                lines = deque(f, maxlen=limit)
+                for line in reversed(lines): # Newest first
+                    try:
+                        decisions.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+            return {"decisions": decisions}
+        except Exception as e:
+            print(f"Error reading decisions log: {e}")
+            # Fallback to ChromaDB if file read fails
+    
     if not context_manager or not context_manager.context_db:
         return {"decisions": []}
     

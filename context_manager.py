@@ -6,6 +6,7 @@ Integrates ChromaDB for semantic search and TimescaleDB for metrics
 
 import json
 import tiktoken
+import psutil
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -163,7 +164,15 @@ class ContextManager:
                 sections.append(metrics_section)
                 token_count += metrics_tokens
         
-        # 3. SAR data (if enabled)
+        # 3. Active Process Summary (NEW)
+        # Always include a snapshot of what's running so the AI isn't blind
+        process_section = self._get_process_summary()
+        process_tokens = self.count_tokens(process_section)
+        if token_count + process_tokens < max_tokens:
+            sections.append(process_section)
+            token_count += process_tokens
+        
+        # 4. SAR data (if enabled)
         if include_sar and self.sar.check_sar_available():
             sar_section = self.sar.format_for_context(hours=1)
             sar_tokens = self.count_tokens(sar_section)
@@ -171,7 +180,7 @@ class ContextManager:
                 sections.append(sar_section)
                 token_count += sar_tokens
         
-        # 4. Recent context entries (newest first, up to token limit)
+        # 5. Recent context entries (newest first, up to token limit)
         entries_section = ["Recent Events:", ""]
         remaining_tokens = max_tokens - token_count
         
@@ -196,11 +205,43 @@ class ContextManager:
         
         sections.append("\n".join(entries_section))
         
-        # 5. Statistics footer
+        # 6. Statistics footer
         footer = self._get_context_stats()
         sections.append(footer)
         
         return "\n\n".join(sections)
+    
+    def _get_process_summary(self) -> str:
+        """Get summary of top active processes"""
+        try:
+            procs = []
+            for p in psutil.process_iter(['pid', 'name', 'username', 'cpu_percent', 'memory_percent']):
+                try:
+                    # Trigger cpu_percent calculation if needed, though usually requires interval
+                    # p.cpu_percent() 
+                    procs.append(p.info)
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    pass
+            
+            # Sort by CPU
+            top_cpu = sorted(procs, key=lambda x: x.get('cpu_percent', 0) or 0, reverse=True)[:5]
+            # Sort by Memory
+            top_mem = sorted(procs, key=lambda x: x.get('memory_percent', 0) or 0, reverse=True)[:5]
+            
+            lines = ["Active Processes Snapshot:"]
+            lines.append("  Top CPU Consumers:")
+            for p in top_cpu:
+                cpu = p.get('cpu_percent', 0) or 0
+                lines.append(f"    {p['name']} (PID {p['pid']}): {cpu:.1f}% CPU")
+                
+            lines.append("  Top Memory Consumers:")
+            for p in top_mem:
+                mem = p.get('memory_percent', 0) or 0
+                lines.append(f"    {p['name']} (PID {p['pid']}): {mem:.1f}% Mem")
+                
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Active Processes: Error retrieving data - {e}"
     
     def _get_system_header(self) -> str:
         """Get system information header"""

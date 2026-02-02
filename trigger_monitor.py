@@ -122,6 +122,26 @@ class TriggerMonitor:
         
         return triggers
     
+    def _get_top_processes(self, sort_by: str = 'cpu_percent', limit: int = 5) -> List[Dict[str, Any]]:
+        """Get top processes by resource usage"""
+        processes = []
+        for p in psutil.process_iter(['pid', 'name', 'username', 'cpu_percent', 'memory_percent']):
+            try:
+                # Force a CPU measurement for valid data on first call if needed, 
+                # but generally in a loop it's fine.
+                # p.cpu_percent() 
+                p_info = p.info
+                # Ensure we have a value
+                if p_info.get(sort_by) is None:
+                    p_info[sort_by] = 0.0
+                processes.append(p_info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        
+        # Sort and slice
+        processes.sort(key=lambda x: x.get(sort_by, 0.0), reverse=True)
+        return processes[:limit]
+
     def _check_metrics(self) -> List[Dict[str, Any]]:
         """Check system metrics against thresholds"""
         triggers = []
@@ -131,6 +151,7 @@ class TriggerMonitor:
             cpu_percent = psutil.cpu_percent(interval=1)
             if cpu_percent > self.thresholds['cpu_percent']:
                 if self._should_trigger('cpu_high'):
+                    top_procs = self._get_top_processes('cpu_percent')
                     triggers.append({
                         'type': 'metric_threshold',
                         'trigger_type': 'cpu_high',
@@ -138,6 +159,7 @@ class TriggerMonitor:
                         'value': cpu_percent,
                         'threshold': self.thresholds['cpu_percent'],
                         'message': f"CPU usage {cpu_percent:.1f}% exceeds threshold {self.thresholds['cpu_percent']:.1f}%",
+                        'top_processes': top_procs,
                         'timestamp': datetime.now(timezone.utc).isoformat()
                     })
             
@@ -145,6 +167,7 @@ class TriggerMonitor:
             memory = psutil.virtual_memory()
             if memory.percent > self.thresholds['memory_percent']:
                 if self._should_trigger('memory_high'):
+                    top_procs = self._get_top_processes('memory_percent')
                     triggers.append({
                         'type': 'metric_threshold',
                         'trigger_type': 'memory_high',
@@ -152,6 +175,7 @@ class TriggerMonitor:
                         'value': memory.percent,
                         'threshold': self.thresholds['memory_percent'],
                         'message': f"Memory usage {memory.percent:.1f}% exceeds threshold {self.thresholds['memory_percent']:.1f}%",
+                        'top_processes': top_procs,
                         'timestamp': datetime.now(timezone.utc).isoformat()
                     })
             
@@ -176,6 +200,7 @@ class TriggerMonitor:
             
             if load_per_cpu > self.thresholds['load_per_cpu']:
                 if self._should_trigger('load_high'):
+                    top_procs = self._get_top_processes('cpu_percent') # Load usually correlates with CPU
                     triggers.append({
                         'type': 'metric_threshold',
                         'trigger_type': 'load_high',
@@ -183,6 +208,7 @@ class TriggerMonitor:
                         'value': load_per_cpu,
                         'threshold': self.thresholds['load_per_cpu'],
                         'message': f"Load average per CPU {load_per_cpu:.2f} exceeds threshold {self.thresholds['load_per_cpu']:.2f}",
+                        'top_processes': top_procs,
                         'timestamp': datetime.now(timezone.utc).isoformat()
                     })
         
