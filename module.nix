@@ -23,6 +23,7 @@ let
     uvicorn
     websockets
     openai
+    mcp
     sse-starlette
   ]);
 
